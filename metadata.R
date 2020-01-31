@@ -93,36 +93,21 @@ weather$Temp.moy <- as.numeric(gsub(",", ".", weather$Temp.moy))
 
 # write.csv(weather, "weather.csv")
 
-#rename col name
-new_samples <- samples %>% select(Date)
-new_weather <- weather 
-
-temperature_selection <- inner_join(new_samples, new_weather, by = "Date")
-
 ##get mean temp of 7 days leading to date
-#function to select temp from range of 7 days leading up to date x
-get_temprange <- function(x){
-  weather[weather$Date >= as.Date(x) - 7 & weather$Date <= as.Date(x),]$Temp.moy
+#function to select range of t-7:t
+get_date_range <- function(x){
+  weather[weather$Date >= as.Date(x) - 7 & weather$Date <= as.Date(x),]
 }
-get_temprange(weather$Date[200])
+get_date_range(weather$Date[200])
 
-#function to get avg temp
-getmeantemp <- function(x) {
-  mean(get_temprange(weather$Date[x]))
+#function to get mean temp from t-7:t
+get_mean_temp <- function(x){
+  y = get_date_range(x)
+  return(mean(y$Temp.moy))
 }
-getmeantemp(get_temprange(weather$Date[200]))
 
-mean(get_temprange(weather$Date[200]))
-
-#combine functions
-get_mean_temp <- function(x,y){
-  y = weather[weather$Date >= as.Date(x) - 7 & weather$Date <= as.Date(x),]$Temp.moy
-    return(mean(y))}
-get_mean_temp((weather$Date[201]))
-
-
-for(x in samples$Date) {
-  samples[samples$Date==x,"Temp.moy"] <- func.widthmeans(prefix=x,target.df="weather")
+#get mean temp for each sample
+for (i in 1:length(samples$Date)){
+  samples$Mean_temperature_t0_t7[i] <- get_mean_temp(samples$Date[i])
 }
-rm(x)
-df1
+
