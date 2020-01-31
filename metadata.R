@@ -78,6 +78,8 @@ weather <- Reduce(function(x,y) merge(x, y, all=TRUE), list(weather_2006, weathe
                                                             weather_2009, weather_2010, weather_2011,
                                                             weather_2012, weather_2013, weather_2014,
                                                             weather_2015, weather_2016))
+#replace missing values with NA
+weather <-replace_na(weather)
 
 #format as.Date
 weather$Date.Heure <- as.Date(weather$Date.Heure)
@@ -86,7 +88,10 @@ weather$Date.Heure <- as.Date(weather$Date.Heure)
 weather <- weather %>% rename(Date = Date.Heure, Temp.moy = Temp.moy...C., Precip.tot = Précip..tot...mm.) %>%
                         select(Date, Temp.moy, Precip.tot) 
 
-write.csv(weather, "weather.csv")
+#convert commas to periods & keep values as.numeric
+weather$Temp.moy <- as.numeric(gsub(",", ".", weather$Temp.moy))
+
+# write.csv(weather, "weather.csv")
 
 #rename col name
 new_samples <- samples %>% select(Date)
@@ -103,22 +108,21 @@ get_temprange(weather$Date[200])
 
 #function to get avg temp
 getmeantemp <- function(x) {
-  mean(c(get_temprange(weather$Date[x])))
+  mean(get_temprange(weather$Date[x]))
 }
-getmeantemp(weather$Date[110])
+getmeantemp(get_temprange(weather$Date[200]))
 
-mean(c(get_temprange(weather$Date[110])))
-mean(c(weather$Temp.moy[104:105]))
-mean(weather$Temp.moy[104:107])
-mean(c(2,5,9,8))
+mean(get_temprange(weather$Date[200]))
 
-weather[104:105,]
+#combine functions
+get_mean_temp <- function(x,y){
+  y = weather[weather$Date >= as.Date(x) - 7 & weather$Date <= as.Date(x),]$Temp.moy
+    return(mean(y))}
+get_mean_temp((weather$Date[201]))
+
 
 for(x in samples$Date) {
   samples[samples$Date==x,"Temp.moy"] <- func.widthmeans(prefix=x,target.df="weather")
 }
 rm(x)
 df1
-weather$Date
-weather$Precip.tot
-weather$Temp.moy[1]
