@@ -1,8 +1,8 @@
 library("dplyr")
 library("tidyverse")
+library(lubridate)
 
-samples <- read.table("data/samples.txt")
-
+samples <- read.table("/Users/kiristern/Desktop/Shapiro_lab/data/samples.txt")
 
 #assign new col name
 colnames(samples)[1] <- "SampleID"
@@ -58,20 +58,20 @@ samples$Month <- gsub("08", "August", samples$Month)
 samples$Month <- gsub("09", "September", samples$Month)
 samples$Month <- gsub("10", "October", samples$Month)
 
-write.csv(samples, "metadata2.csv")
+# write.csv(samples, "metadata2.csv")
 
 ################# Using new generated meta-data2 table
-weather_2006 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2006_P1D.csv")
-weather_2007 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2007_P1D.csv")
-weather_2008 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2008_P1D.csv")
-weather_2009 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2009_P1D.csv")
-weather_2010 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2010_P1D.csv")
-weather_2011 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2011_P1D.csv")
-weather_2012 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2012_P1D.csv")
-weather_2013 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2013_P1D.csv")
-weather_2014 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2014_P1D.csv")
-weather_2015 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2015_P1D.csv")
-weather_2016 <- read.csv("data/fr_climat_quotidiennes_QC_7022579_2016_P1D.csv")
+weather_2006 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2006_P1D.csv")
+weather_2007 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2007_P1D.csv")
+weather_2008 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2008_P1D.csv")
+weather_2009 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2009_P1D.csv")
+weather_2010 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2010_P1D.csv")
+weather_2011 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2011_P1D.csv")
+weather_2012 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2012_P1D.csv")
+weather_2013 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2013_P1D.csv")
+weather_2014 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2014_P1D.csv")
+weather_2015 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2015_P1D.csv")
+weather_2016 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2016_P1D.csv")
 
 #merge all weather dataframes
 weather <- Reduce(function(x,y) merge(x, y, all=TRUE), list(weather_2006, weather_2007, weather_2008,
@@ -94,9 +94,7 @@ new_weather <- weather
 
 temperature_selection <- inner_join(new_samples, new_weather, by = "Date")
 
-#get mean temp of 7 days leading to date
-library(lubridate)
-
+##get mean temp of 7 days leading to date
 #function to select temp from range of 7 days leading up to date x
 get_temprange <- function(x){
   weather[weather$Date >= as.Date(x) - 7 & weather$Date <= as.Date(x),]$Temp.moy
