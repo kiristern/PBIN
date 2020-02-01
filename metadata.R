@@ -1,6 +1,8 @@
 library("dplyr")
 library("tidyverse")
+library(tidyr)
 library(lubridate)
+library(naniar)
 
 samples <- read.table("/Users/kiristern/Desktop/Shapiro_lab/data/samples.txt")
 
@@ -98,7 +100,7 @@ weather$Temp.moy <- as.numeric(gsub(",", ".", weather$Temp.moy))
 get_date_range <- function(x){
   weather[weather$Date >= as.Date(x) - 7 & weather$Date <= as.Date(x),]
 }
-get_date_range(weather$Date[200])
+get_date_range(samples$Date[100])
 
 #function to get mean temp from t-7:t
 get_mean_temp <- function(x){
@@ -111,3 +113,52 @@ for (i in 1:length(samples$Date)){
   samples$Mean_temperature_t0_t7[i] <- get_mean_temp(samples$Date[i])
 }
 
+##########
+meta <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/mapping_bloom2_new_corrected2.csv")
+meta2 <- meta
+#View(meta2)
+
+#replace missing values with NA
+meta2 <- meta2 %>% mutate_all(~replace(., . ==0, NA))
+
+#rename
+meta2<- rename(meta2, "Date" = "Sample")
+
+#remove everything before 4th period in sampleID (just to keep date)
+meta2$Date <- gsub("*........(.*)\\-.*","\\1", meta2$SampleID)
+
+#extract proper year
+meta2$Years <- gsub(".*-(.*)\\-.*", "\\1", meta2$SampleID, perl=T)
+
+#extract proper month
+#meta2$Months <- gsub(".*-.(.*)\\-.*-.*", "\\1", meta2$SampleID, perl=T) #"." before ( indicates to remove the first character between xx-Xx-xxxx
+meta2$Months <- gsub(".*-(.*)\\-.*-.*", "\\1", meta2$SampleID, perl=T)
+
+#change month from numeric to title
+meta2$Months <- gsub("03", "March", meta2$Months)
+meta2$Months <- gsub("04", "April", meta2$Months)
+meta2$Months <- gsub("05", "May", meta2$Months)
+meta2$Months <- gsub("06", "June", meta2$Months)
+meta2$Months <- gsub("07", "July", meta2$Months)
+meta2$Months <- gsub("08", "August", meta2$Months)
+meta2$Months <- gsub("09", "September", meta2$Months)
+meta2$Months <- gsub("10", "October", meta2$Months)
+
+#assign season depending on date
+getSeason <- function(DATES) {
+  WS <- as.Date("15-12-2012", format = "%d-%m-%Y") # Winter Solstice
+  SE <- as.Date("15-3-2012",  format = "%d-%m-%Y") # Spring Equinox
+  SS <- as.Date("15-6-2012",  format = "%d-%m-%Y") # Summer Solstice
+  FE <- as.Date("15-9-2012",  format = "%d-%m-%Y") # Fall Equinox
+  
+  # Convert dates from any year to 2012 dates
+  d <- as.Date(strftime(DATES, format="2012-%m-%d"))
+  
+  ifelse (d >= WS | d < SE, "Winter",
+          ifelse (d >= SE & d < SS, "Spring",
+                  ifelse (d >= SS & d < FE, "Summer", "Fall")))
+}
+#format as.Date
+meta2$Date <- as.Date(meta2$Date, "%d-%m-%Y")
+#assign season depending on date
+meta2$Period <- getSeason(meta2$Date)
