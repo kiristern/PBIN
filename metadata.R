@@ -93,6 +93,9 @@ weather <- weather %>% rename(Date = Date.Heure, Temp.moy = Temp.moy...C., Preci
 #convert commas to periods & keep values as.numeric
 weather$Temp.moy <- as.numeric(gsub(",", ".", weather$Temp.moy))
 
+#convert commas to periods & keep values as.numeric
+weather$Precip.tot <- as.numeric(gsub(",", ".", weather$Precip.tot))
+
 # write.csv(weather, "weather.csv")
 
 ##get mean temp of 7 days leading to date
@@ -108,10 +111,22 @@ get_mean_temp <- function(x){
   return(mean(y$Temp.moy))
 }
 
+#function to get mean precipitation from t-7:t
+get_mean_prec <- function(x){
+  y = get_date_range(x)
+  return(mean(y$Precip.tot))
+}
+
 #get mean temp for each sample
 for (i in 1:length(samples$Date)){
   samples$Mean_temperature_t0_t7[i] <- get_mean_temp(samples$Date[i])
 }
+
+#get mean prec for each sample
+for (i in 1:length(samples$Date)){
+  samples$Cumulative_precipitation_t1_t7_mm[i] <- get_mean_prec(samples$Date[i])
+}
+
 
 ##########
 meta <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/mapping_bloom2_new_corrected2.csv")
@@ -162,3 +177,6 @@ getSeason <- function(DATES) {
 meta2$Date <- as.Date(meta2$Date, "%d-%m-%Y")
 #assign season depending on date
 meta2$Period <- getSeason(meta2$Date)
+
+
+
