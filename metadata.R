@@ -74,12 +74,15 @@ weather_2013 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_qu
 weather_2014 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2014_P1D.csv")
 weather_2015 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2015_P1D.csv")
 weather_2016 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2016_P1D.csv")
+weather_2017 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2017_P1D.csv")
+weather_2018 <- read.csv("/Users/kiristern/Desktop/Shapiro_lab/data/fr_climat_quotidiennes_QC_7022579_2018_P1D.csv")
 
 #merge all weather dataframes
 weather <- Reduce(function(x,y) merge(x, y, all=TRUE), list(weather_2006, weather_2007, weather_2008,
                                                             weather_2009, weather_2010, weather_2011,
                                                             weather_2012, weather_2013, weather_2014,
-                                                            weather_2015, weather_2016))
+                                                            weather_2015, weather_2016, weather_2017,
+                                                            weather_2018))
 #replace missing values with NA
 weather <-replace_na(weather)
 
@@ -142,6 +145,52 @@ meta2<- rename(meta2, "Date" = "Sample")
 #remove everything before 4th period in sampleID (just to keep date)
 meta2$Date <- gsub("*........(.*)\\-.*","\\1", meta2$SampleID)
 
+#fix dates that didn't correctly format
+meta2$Description <- gsub("-Aug-17", "-08-2017", meta2$Description)
+meta2$Description <- gsub("-Aug-18", "-08-2018", meta2$Description)
+meta2$Description <- gsub("-Sep-17", "-09-2017", meta2$Description)
+meta2$Description <- gsub("-Sep-18", "-09-2018", meta2$Description)
+meta2$Description <- gsub("-Oct-18", "-10-2018", meta2$Description)
+
+meta2$Date[200:210] <- meta2$Description[200:210]
+meta2$Date[26] <- "02-06-2007"
+meta2$Date[33] <- "29-08-2007"
+meta2$Date[43] <- "01-06-2008"
+meta2$Date[44] <- "02-06-2008"
+meta2$Date[47] <- "02-07-2008"
+meta2$Date[50] <- "28-07-2008"
+meta2$Date[54] <- "18-08-2008"
+meta2$Date[70] <- "19-06-2009"
+meta2$Date[71] <- "19-06-2009"
+meta2$Date[79] <- "29-07-2009"
+meta2$Date[80] <- "08-08-2009"
+meta2$Date[110] <- "12-06-2011"
+meta2$Date[143] <- "27-08-2013"
+meta2$Date[158] <- "29-07-2015"
+meta2$Date[162] <- "31-07-2015"
+meta2$Date[165] <- "05-08-2015"
+meta2$Date[167] <- "06-08-2015"
+meta2$Date[180] <- "19-07-2016"
+meta2$Date[181] <- "20-07-2016"
+meta2$Date[182] <- "21-07-2016"
+meta2$Date[183] <- "25-07-2016"
+meta2$Date[184] <- "27-07-2016"
+meta2$Date[185] <- "01-08-2016"
+meta2$Date[186] <- "03-08-2016"
+meta2$Date[187] <- "09-08-2016"
+meta2$Date[188] <- "16-08-2016"
+meta2$Date[189] <- "18-08-2016"
+meta2$Date[190] <- "23-08-2016"
+meta2$Date[191] <- "01-09-2016"
+meta2$Date[192] <- "03-09-2016"
+meta2$Date[193] <- "08-09-2016"
+meta2$Date[194] <- "15-09-2016"
+meta2$Date[195] <- "19-09-2016"
+meta2$Date[196] <- "22-09-2016"
+meta2$Date[197] <- "25-10-2016"
+meta2$Date[198] <- "26-09-2016"
+meta2$Date[199] <- "06-10-2016"
+
 #extract proper year
 meta2$Years <- gsub(".*-(.*)\\-.*", "\\1", meta2$SampleID, perl=T)
 
@@ -175,8 +224,18 @@ getSeason <- function(DATES) {
 }
 #format as.Date
 meta2$Date <- as.Date(meta2$Date, "%d-%m-%Y")
+
 #assign season depending on date
 meta2$Period <- getSeason(meta2$Date)
 
+#get avg temp for each sample
+for (i in 1:length(meta2$Date)){
+  meta2$Mean_temperature_t0_t7[i] <- get_mean_temp(meta2$Date[i])
+}
 
+#get avg prec for each sample
+for (i in 1:length(meta2$Date)){
+  meta2$Cumulative_precipitation_t1_t7_mm[i] <- get_mean_prec(meta2$Date[i])
+}
 
+write.csv(meta2, "metadata2.csv")
