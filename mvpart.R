@@ -44,22 +44,14 @@ abun_norm <- decostand(abundance, "hellinger")
 env_var %>% 
   filter_all(any_vars(is.na(.))) 
 
-mvpart_formula <- abundance ~ Date + Months + Years +  Site + Period + bloom2 + 
-  Cumulative_precipitation_t1_t7_mm + Mean_temperature_t0_t7 
+# mvpart_formula <- abundance ~ Date + Months + Years +  Site + Period + bloom2 + 
+#   Cumulative_precipitation_t1_t7_mm + Mean_temperature_t0_t7 
+
+mvpart_formula <- abundance ~ Period + Site + bloom2 + Months + Years + Cumulative_precipitation_t1_t7_mm +
+  Mean_temperature_t0_t7 
 
 tree <- mvpart(mvpart_formula, env_var,
                legend=FALSE, margin=0.01, cp=0, xv="pick",
                xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
 
-rpart.pca(tree)
-
-# set.seed(1234)
-# 
-# mvpart_run1 <- mvpart(
-#   form=mvpart_formula,
-#   data = enviro_var,
-#   all.leaves=T,
-#   rsq=T,
-#   pca=T,
-#   wgt.ave.pca = T
-# )
+rpart.pca(tree, interact = T, wgt.ave = T)
