@@ -8,14 +8,14 @@ library(vegan)
 # meta_table <- meta#[complete.cases(meta),]
 abund_table <- read.table("data/ASVs_counts_copy.tsv", header = T, row.names = 1, check.names = F)
 enviro_var <- read.csv("data/metadata3.csv", row.names=1, header=T)
+#change to data format
+enviro_var[1] <- as.Date(enviro_var$Date)
 
 summary(enviro_var)
 env_var <- enviro_var %>% select(1:6, 12:13)
 env_var <- env_var[complete.cases(env_var), ]
 env_var %>% dplyr::glimpse()
-
-#change to data format
-env_var[1] <- as.Date(env_var$Date)
+summary(env_var)
 
 abundance <- t(data.matrix(abund_table))
 
@@ -40,17 +40,18 @@ abundance <- abundance[!(row.names(abundance) %in% row_remove), ]
 #The square-root portion of the transformation decreases the importance of the most abundant species.
 abun_norm <- decostand(abundance, "hellinger")
 
-# mvpart_formula <- abundance ~ Date + Months + Years +  Site + Period + bloom2 + Cumulative_precipitation_t1_t7_mm + 
-  # Mean_temperature_t0_t7 
+#check where there is NAs
+env_var %>% 
+  filter_all(any_vars(is.na(.))) 
 
-tree <- mvpart(data.matrix(abun_norm) ~ Date + Months + Years +  Site + Period + bloom2 + Cumulative_precipitation_t1_t7_mm + 
-                      Mean_temperature_t0_t7, 
-                    env_var,
+mvpart_formula <- abundance ~ Date + Months + Years +  Site + Period + bloom2 + 
+  Cumulative_precipitation_t1_t7_mm + Mean_temperature_t0_t7 
+
+tree <- mvpart(mvpart_formula, env_var,
                legend=FALSE, margin=0.01, cp=0, xv="pick",
                xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
 
 rpart.pca(tree)
-
 
 # set.seed(1234)
 # 
