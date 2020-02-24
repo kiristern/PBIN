@@ -47,11 +47,23 @@ env_var %>%
 # mvpart_formula <- abundance ~ Date + Months + Years +  Site + Period + bloom2 + 
 #   Cumulative_precipitation_t1_t7_mm + Mean_temperature_t0_t7 
 
-mvpart_formula <- abundance ~ Period + Site + bloom2 + Months + Years + Cumulative_precipitation_t1_t7_mm +
+mvpart_formula <- abun_norm ~ Period + Site + bloom2 + Months + Years + Cumulative_precipitation_t1_t7_mm +
   Mean_temperature_t0_t7 
 
 tree <- mvpart(mvpart_formula, env_var,
                legend=FALSE, margin=0.01, cp=0, xv="pick",
                xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+
+str(tree)
+summary(tree)
+
+mvpart_run1 <- mvpart(
+  form = mvpart_formula, 
+  data = env_var,
+  all.leaves = TRUE,  # annotate all nodes
+  rsq = TRUE,  # give "rsq" plot
+  pca = TRUE,  # plot PCA of group means and add species and site information
+  wgt.ave.pca = TRUE  # plot weighted averages acorss sites for species
+)
 
 rpart.pca(tree, interact = T, wgt.ave = T)
