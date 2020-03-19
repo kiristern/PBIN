@@ -56,25 +56,25 @@ plot(observed, viral_physeq, color="Months")
 
 #observed richness 
 #Sequencing depth by Year
-data.frame("observed_richness" = (observed %>% summary)$estimate,
-           "Depth" = phyloseq::sample_sums(viral_physeq), # sequence depth
-           "type" = viral_physeq %>% sample_data %>% get_variable("Years")) %>%
-  ggplot(aes(x = Depth, y = observed_richness, color = type)) +
-  geom_point()
-
-#Year by month
-data.frame("observed_richness" = (observed %>% summary)$estimate,
-           "Years" = viral_physeq %>% sample_data %>% get_variable("Years"),
-           "type" = viral_physeq %>% sample_data %>% get_variable("Months")) %>%
-  ggplot(aes(x = Years, y = observed_richness, color = type)) +
-  geom_point()
-
-#Month by year
-data.frame("observed_richness" = (observed %>% summary)$estimate,
-           "Months" = viral_physeq %>% sample_data %>% get_variable("Months"),
-           "type" = viral_physeq %>% sample_data %>% get_variable("Years")) %>%
-  ggplot(aes(x = Months, y = observed_richness, color = type)) +
-  geom_point()
+# data.frame("observed_richness" = (observed %>% summary)$estimate,
+#            "Depth" = phyloseq::sample_sums(viral_physeq), # sequence depth
+#            "type" = viral_physeq %>% sample_data %>% get_variable("Years")) %>%
+#   ggplot(aes(x = Depth, y = observed_richness, color = type)) +
+#   geom_point()
+# 
+# #Year by month
+# data.frame("observed_richness" = (observed %>% summary)$estimate,
+#            "Years" = viral_physeq %>% sample_data %>% get_variable("Years"),
+#            "type" = viral_physeq %>% sample_data %>% get_variable("Months")) %>%
+#   ggplot(aes(x = Years, y = observed_richness, color = type)) +
+#   geom_point()
+# 
+# #Month by year
+# data.frame("observed_richness" = (observed %>% summary)$estimate,
+#            "Months" = viral_physeq %>% sample_data %>% get_variable("Months"),
+#            "type" = viral_physeq %>% sample_data %>% get_variable("Years")) %>%
+#   ggplot(aes(x = Months, y = observed_richness, color = type)) +
+#   geom_point()
 
 #estimate number of missing species using a species richness estimate
 ba <- breakaway(viral_physeq)
