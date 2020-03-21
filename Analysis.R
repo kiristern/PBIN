@@ -6,12 +6,15 @@ library(DivNet)
 library(tidyverse)
 library(qiime2R)
 library(mvpart)
+library(vegan)
 
 setwd("~/Documents/GitHub/PBIN/data")
 
 #upload ASV count table and metadata
 ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
 meta <- read.csv("metadata3.csv", row.names=1, header=T)
+
+meta$Years <- as.factor(meta$Years)
 
 #ASV count table to phyloseq table
 count_phy <- otu_table(ASV_count, taxa_are_rows=T)
@@ -20,7 +23,7 @@ viral_physeq <- phyloseq(count_phy, sample_info)
 
 #upload viral tree
 virTree<-read_tree("viral_tree")
-plot(virTree)
+
 #add tree to phyloseq object
 viral_physeq <- phyloseq(count_phy, sample_info, virTree)
 
@@ -29,6 +32,35 @@ sort(taxa_sums(viral_physeq), decreasing = T)[1:10]
 
 #check data
 print(viral_physeq)
+
+#####Abundance#####
+
+#transpose table
+asv <- t(ASV_count)
+#get total count of asv
+asv_tot <- colSums(asv)
+#transfor to df
+asv_tot <- as.data.frame(asv_tot)
+#add new empty column
+newcol <- "rel_ab"
+asv_tot[,newcol] <- NA
+
+#get relative abundance function
+get_rel_abun <- function(x){
+  x / sum(asv_tot[1])
+}
+
+#apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
+asv_tot[2] <- get_rel_abun(asv_tot[1])
+
+#relative abundance matrix
+asv_rel_abun_matrix <- decostand(asv, method="total")
+
+
+trans <- transform_sample_counts(viral_physeq, function(x) x/sum(x))
+melted <- psmelt(trans)
+with(melted[melted$OTU,])
+
 
 ##ordination
 ##https://joey711.github.io/phyloseq/plot_ordination-examples.html
@@ -81,10 +113,32 @@ ba <- breakaway(viral_physeq)
 ba
 plot(ba, viral_physeq, color="Years")
 
-ba_alpha = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
-           "Years" = viral_physeq %>% sample_data %>% get_variable("Years"))
+#get sample names
+# x <- viral_physeq %>% sample_data %>% rownames()
 
-ba_plot <-  ggplot(ba_alpha, aes(x = Years, y = ba_observed_richness))+
+#table of sample names, richness, and error 
+# alpha_err <- data.frame(x,
+                        # summary(ba)$estimate,
+                        # summary(ba)$error,
+                        # make_design_matrix(viral_physeq, "Years"))
+
+# richness <- summary(ba)$estimate
+# std_dev <- summary(ba)$error
+# 
+# plot(x, richness,
+#      ylim = range(c(richness-std_dev, richness+std_dev)),
+#      xlim = 
+#      pch=19, xlab = "Sample", ylab = "Richness +/- Std Dev",
+#      main = "Alpha div with std.dev error bars"
+# )
+# #hack: draw arrow heads as lines
+# arrows(x, richness-std_dev, x, richness+std_dev, length=0.05, angle = 90, code=3)
+
+#for variables Years and bloom2
+ba_alpha = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
+           "Year" = viral_physeq %>% sample_data %>% get_variable("Years"))
+
+ba_plot <-  ggplot(ba_alpha, aes(x = Bloom, y = ba_observed_richness))+
   geom_point()
 
 #geom_crossbar()
@@ -118,15 +172,17 @@ ba_tr$model
 #   add_column("SampleNames" = viral_physeq %>% otu_table %>% sample_names)
 
 #chose a different species richness estimate
-viral_physeq %>%
+chao_est <- viral_physeq %>%
   chao1 %>%
   plot(viral_physeq, color="Months")
+
+
 
 #betta() works like a regression model but accounts for the uncertainty in estimating diversity
 # test hypothesis that different types of water systems have the same microbial div (not in this case)
 bt <- betta(summary(ba)$estimate,
             summary(ba)$error,
-            make_design_matrix(viral_physeq, "Months"))
+            make_design_matrix(viral_physeq, "Site"))
 bt$table
 #betta() estimates that the mean ASV-level diversity in ... is 368?
 #estimates the the diversity in March is significantly lower (~222) than all others but that they're all below 0??
