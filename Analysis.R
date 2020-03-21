@@ -39,11 +39,16 @@ print(viral_physeq)
 asv <- t(ASV_count)
 #get total count of asv
 asv_tot <- colSums(asv)
-#transfor to df
+#transform to df
 asv_tot <- as.data.frame(asv_tot)
+#extract asv_id 
+asv_id <- row.names(asv_tot)
+#add asv_ids to df
+asv_tot$ID=asv_id
 #add new empty column
 newcol <- "rel_ab"
 asv_tot[,newcol] <- NA
+asv_tot <- mutate(asv_tot, sample=row.names(asv_tot))
 
 #get relative abundance function
 get_rel_abun <- function(x){
@@ -51,7 +56,10 @@ get_rel_abun <- function(x){
 }
 
 #apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
-asv_tot[2] <- get_rel_abun(asv_tot[1])
+asv_tot[3] <- get_rel_abun(asv_tot[1])
+
+#sort relative abundance from largest to smallest
+arrange(asv_tot, desc(rel_ab))
 
 #relative abundance matrix
 asv_rel_abun_matrix <- decostand(asv, method="total")
