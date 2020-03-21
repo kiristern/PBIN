@@ -62,8 +62,14 @@ asv_tot[3] <- get_rel_abun(asv_tot[1])
 asv_tot <- arrange(asv_tot, desc(rel_ab))
 top17 <- head(asv_tot, 17)
 
+#write.csv(top17, file="top17.csv")
+
+top17 <- read.csv("top17.csv")
+
+
 #relative abundance matrix
 asv_rel_abun_matrix <- decostand(asv, method="total")
+
 
 
 ##ordination
