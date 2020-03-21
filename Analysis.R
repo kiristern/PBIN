@@ -59,7 +59,8 @@ get_rel_abun <- function(x){
 asv_tot[3] <- get_rel_abun(asv_tot[1])
 
 #sort relative abundance from largest to smallest
-arrange(asv_tot, desc(rel_ab))
+asv_tot <- arrange(asv_tot, desc(rel_ab))
+top17 <- head(asv_tot, 17)
 
 #relative abundance matrix
 asv_rel_abun_matrix <- decostand(asv, method="total")
