@@ -57,11 +57,6 @@ asv_tot[2] <- get_rel_abun(asv_tot[1])
 asv_rel_abun_matrix <- decostand(asv, method="total")
 
 
-trans <- transform_sample_counts(viral_physeq, function(x) x/sum(x))
-melted <- psmelt(trans)
-with(melted[melted$OTU,])
-
-
 ##ordination
 ##https://joey711.github.io/phyloseq/plot_ordination-examples.html
 
