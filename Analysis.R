@@ -66,11 +66,17 @@ top17 <- head(asv_tot, 17)
 
 top17 <- read.csv("top17.csv")
 
-
+asv_tax <- (asv)[,1:17]
+nrow(asv_tax)
 #relative abundance matrix
-asv_rel_abun_matrix <- decostand(asv, method="total")
+asv_rel_abun <- decostand(asv_tax, method="total")
+asv_rel_abun <- as.data.frame(asv_rel_abun)
 
+#change col names to taxa ID
+name_tax <- select(top17, ID, virus)
 
+#if ASV_ID = ASV_ID, change to virus name
+names(asv_rel_abun) <- name_tax$virus[match(names(asv_rel_abun), name_tax$ID)]
 
 ##ordination
 ##https://joey711.github.io/phyloseq/plot_ordination-examples.html
