@@ -82,10 +82,35 @@ name_tax <- select(top17, ID, virus)
 #if row ASV_ID = col ASV_ID, change to virus name
 names(asv_rel_abun) <- name_tax$virus[match(names(asv_rel_abun), name_tax$ID)]
 
-#duplicate rows each 18 times 
-asv_rel_abun <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 16), ]
+#duplicate each sample 17 times (number of unique ASVs)
+asv_rel_abun <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 17), ]
 
-# write.csv(asv_rel_abun, "asv_rel_abun_taxa.csv")
+#create new row of repeated ASV_IDs 168 times (# of samples) - make sure order is from ASV_1 - end (not order of abundance)
+ASV_ID <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5", 
+            "ASV_2", 
+            "ASV_3",
+            "Uncultured cyanomyovirus clone SZCPS18",
+            "Uncultured Myoviridae g20_82_56_1%_NEQ", 
+            "Uncultured cyanophage clone BwC24", 
+            "Uncultured Myoviridae g20_94_44_1%_NEQ", 
+            "Uncultured cyanomyovirus clone 88268CPSCC8",
+            "Uncultured cyanophage clone LAB_g20_b26_C12",
+            "Uncultured cyanophage clone KRB1008M5",
+            "Uncultured cyanophage clone LAB_g20_b28_D9",
+            "Uncultured cyanomyovirus clone 45202CPSCC1",
+            "Uncultured cyanophage clone KRA0808M1",
+            "ASV_14",
+            "Cyanophage LLM-cg20-1 clone LLM-cg20-1",
+            "ASV_16",
+            "Cyanophage S-RIM isolate S-RIM5"
+            ))
+n=168
+ASV_ID <- do.call("rbind", replicate(n, ASV_ID, simplify = FALSE))
+
+#add ASV_ID col to asv_rel_abun df
+asv_rel_abun <- add_column(asv_rel_abun, ASV_ID, .before=1)
+
+write.csv(asv_rel_abun, "asv_rel_abun_taxa_new.csv")
 df <- read.csv("asv_rel_abun_taxa.csv")
 
 df %>% group_by(Sample, ASV_ID) %>% summarise(Abundance = sum(Abundance)) %>%
