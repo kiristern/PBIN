@@ -70,6 +70,7 @@ top17 <- head(asv_tot, 17)
 top17 <- read.csv("top17.csv")
 
 asv_tax <- (asv)[,1:18]
+asv_tax <- asv_tax[,-17]
 nrow(asv_tax)
 #relative abundance matrix
 asv_rel_abun <- decostand(asv_tax, method="total")
