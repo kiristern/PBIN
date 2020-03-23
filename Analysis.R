@@ -51,7 +51,7 @@ asv_tot$ID=asv_id
 #add new empty column
 newcol <- "rel_ab"
 asv_tot[,newcol] <- NA
-asv_tot <- mutate(asv_tot, sample=row.names(asv_tot))
+# asv_tot <- mutate(asv_tot, sample=row.names(asv_tot))
 
 #get relative abundance function
 get_rel_abun <- function(x){
@@ -65,13 +65,14 @@ asv_tot[3] <- get_rel_abun(asv_tot[1])
 asv_tot <- arrange(asv_tot, desc(rel_ab))
 top17 <- head(asv_tot, 17)
 
-#write.csv(top17, file="top17.csv")
+#write.csv(top17, file="top17_new.csv")
 
 top17 <- read.csv("top17.csv")
 
 asv_tax <- (asv)[,1:18]
 asv_tax <- asv_tax[,-17]
 nrow(asv_tax)
+ncol(asv_tax)
 #relative abundance matrix
 asv_rel_abun <- decostand(asv_tax, method="total")
 asv_rel_abun <- as.data.frame(asv_rel_abun)
@@ -79,11 +80,11 @@ asv_rel_abun <- as.data.frame(asv_rel_abun)
 #change col names to taxa ID
 name_tax <- select(top17, ID, virus)
 
-#if row ASV_ID = col ASV_ID, change to virus name
+#change ASV_ to real taxonomic name
 names(asv_rel_abun) <- name_tax$virus[match(names(asv_rel_abun), name_tax$ID)]
 
 #duplicate each sample 17 times (number of unique ASVs)
-asv_rel_abun <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 17), ]
+asv_rel_abun_dup <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 17), ]
 
 #create new row of repeated ASV_IDs 168 times (# of samples) - make sure order is from ASV_1 - end (not order of abundance)
 ASV_ID <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5", 
@@ -105,15 +106,39 @@ ASV_ID <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5",
             "Cyanophage S-RIM isolate S-RIM5"
             ))
 n=168
-ASV_ID <- do.call("rbind", replicate(n, ASV_ID, simplify = FALSE))
+replicate <- do.call("rbind", replicate(n, ASV_ID, simplify = FALSE))
+
+#write.csv(replicate, "replicate.csv")
+replicate <- read.csv("replicate.csv")
 
 #add ASV_ID col to asv_rel_abun df
-asv_rel_abun <- add_column(asv_rel_abun, ASV_ID, .before=1)
+#asv_rel_abun_dup <- add_column(asv_rel_abun_dup, replicate, .before=1)
 
-write.csv(asv_rel_abun, "asv_rel_abun_taxa_new.csv")
-df <- read.csv("asv_rel_abun_taxa.csv")
+#create new col named samples which duplicates rownames
+samples <- row.names(asv_rel_abun_dup)
+#add col to df
+asv_rel_abun_dup <- add_column(asv_rel_abun_dup, samples, .before=1)
 
-df %>% group_by(Sample, ASV_ID) %>% summarise(Abundance = sum(Abundance)) %>%
+#remove everything after "."
+asv_rel_abun_dup$samples <- gsub("\\..*", "", asv_rel_abun_dup$samples)
+#write.csv(asv_rel_abun_dup, file = "repeat_sample_names.csv")
+
+#transpose
+sample_abundance <- as.data.frame(t(asv_rel_abun))
+
+#one col of all abundances
+stacked <- stack(sample_abundance)
+
+#add stacked to asv_rel_abun_dup df
+asv_rel_abun_dup <- add_column(asv_rel_abun_dup, stacked$values, .after=1)
+#write.csv(asv_rel_abun_dup, file="asv_rel_abun.csv")
+
+final_asv_rel_abun <- select(asv_rel_abun_dup, "sample", "ASV_ID", "stacked$values")
+names(final_asv_rel_abun)[names(final_asv_rel_abun)=="stacked$values"] <- "abundance"
+
+write.csv(final_asv_rel_abun, file="relative_abundance.csv")
+
+final_asv_rel_abun %>% group_by(sample, ASV_ID) %>% summarise(Abundance = sum(`stacked$values`)) %>%
   ggplot(aes(x = Sample, y = Abundance, fill = ASV_ID)) + geom_bar(stat = "identity")
 
 # #split df by samples
