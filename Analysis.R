@@ -7,6 +7,9 @@ library(tidyverse)
 library(qiime2R)
 library(mvpart)
 library(vegan)
+library(ggplot2)
+library(dplyr)
+library(tibble)
 
 setwd("~/Documents/GitHub/PBIN/data")
 
@@ -75,8 +78,27 @@ asv_rel_abun <- as.data.frame(asv_rel_abun)
 #change col names to taxa ID
 name_tax <- select(top17, ID, virus)
 
-#if ASV_ID = ASV_ID, change to virus name
+#if row ASV_ID = col ASV_ID, change to virus name
 names(asv_rel_abun) <- name_tax$virus[match(names(asv_rel_abun), name_tax$ID)]
+
+#duplicate rows each 18 times 
+asv_rel_abun <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 16), ]
+
+# write.csv(asv_rel_abun, "asv_rel_abun_taxa.csv")
+df <- read.csv("asv_rel_abun_taxa.csv")
+
+df %>% group_by(Sample, ASV_ID) %>% summarise(Abundance = sum(Abundance)) %>%
+  ggplot(aes(x = Sample, y = Abundance, fill = ASV_ID)) + geom_bar(stat = "identity")
+
+# #split df by samples
+# df_list <- split(df, df$Sample)
+# df_list$FLD0194_30_05_2006_2b
+# 
+
+
+
+#plot
+asv_rel_abun %>% group_by()
 
 ##ordination
 ##https://joey711.github.io/phyloseq/plot_ordination-examples.html
