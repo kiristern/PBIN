@@ -1,5 +1,7 @@
 library(dplyr)
 library(tibble)
+library(tidyr)
+library(vegan)
 
 setwd("~/Documents/GitHub/PBIN/data")
 
@@ -32,14 +34,14 @@ asv_tot[3] <- get_rel_abun(asv_tot[1])
 
 #sort relative abundance from largest to smallest
 asv_tot <- arrange(asv_tot, desc(rel_ab))
-top17 <- head(asv_tot, 17)
+top20 <- head(asv_tot, 20)
 
-#write.csv(top17, file="top17_new.csv")
+#write.csv(top20, file="top20.csv")
 
-top17 <- read.csv("top17.csv")
+top20 <- read.csv("top20.csv")
 
-asv_tax <- (asv)[,1:18]
-asv_tax <- asv_tax[,-17]
+asv_tax <- (asv)[,c(1:16, 18:21)]
+#asv_tax <- asv_tax[,-17]
 nrow(asv_tax)
 ncol(asv_tax)
 #relative abundance matrix
@@ -47,37 +49,115 @@ asv_rel_abun <- decostand(asv_tax, method="total")
 asv_rel_abun <- as.data.frame(asv_rel_abun)
 
 #change col names to taxa ID
-name_tax <- select(top17, ID, virus)
+#name_tax <- select(top17, ID, virus)
+  #if select doesn't work
+  name_tax <- top20[, c(2, 4)]
+
+#add brackets around ID
+name_tax$ID_brackets <- with(name_tax, paste0("(", ID, ")"))
+  
+#merge ASV name with ID in new col
+(virus_ID <- paste(name_tax$taxa, name_tax$ID_brackets, sep=" "))
+virus_ID[2] <- "ASV_2"
+virus_ID[3] <- "ASV_3"
+virus_ID[14] <- "ASV_14"
+virus_ID[16] <- "ASV_16"
+
+#add col to name_tax df
+name_tax <- add_column(name_tax, virus_ID)
 
 #change ASV_ to real taxonomic name
-names(asv_rel_abun) <- name_tax$virus[match(names(asv_rel_abun), name_tax$ID)]
+names(asv_rel_abun) <- name_tax$virus_ID[match(names(asv_rel_abun), name_tax$ID)]
 
-#duplicate each sample 17 times (number of unique ASVs)
-asv_rel_abun_dup <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 17), ]
+####Combine ASV_14, 16, 2, 3 into unknown ASV
+
+asv_rel_abun$Unknown_ASV <- asv_rel_abun %>% select(ASV_2, ASV_3, ASV_14, ASV_16) %>% rowSums()
+
+#remove asv_X cols
+asv_rel_abun_unk <- asv_rel_abun %>% select(-c(ASV_2, ASV_3, ASV_14, ASV_16))
+ncol(asv_rel_abun_unk)
+#duplicate each sample 17 times
+asv_rel_abun_unk_dup <- asv_rel_abun_unk[rep(seq_len(nrow(asv_rel_abun_unk)), each = 17), ]
 
 #create new row of repeated ASV_IDs 168 times (# of samples) - make sure order is from ASV_1 - end (not order of abundance)
-ASV_ID <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5", 
+ASV_ID_unk <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5 (ASV_1)", 
+                                "Uncultured cyanomyovirus clone SZCPS18 (ASV_4)",
+                                "Uncultured Myoviridae g20_82_56_1%_NEQ (ASV_5)", 
+                                "Uncultured cyanophage clone BwC24 (ASV_6)", 
+                                "Uncultured Myoviridae g20_94_44_1%_NEQ (ASV_7)", 
+                                "Uncultured cyanomyovirus clone 88268CPSCC8 (ASV_8)",
+                                "Uncultured cyanophage clone LAB_g20_b26_C12 (ASV_9)",
+                                "Uncultured cyanophage clone KRB1008M5 (ASV_10)",
+                                "Uncultured cyanophage clone LAB_g20_b28_D9 (ASV_11)",
+                                "Uncultured cyanomyovirus clone 45202CPSCC1 (ASV_12)",
+                                "Uncultured cyanophage clone KRA0808M1 (ASV_13)",
+                                "Cyanophage LLM-cg20-1 clone LLM-cg20-1 (ASV_15)",
+                                "Cyanophage S-RIM isolate S-RIM5 (ASV_18)",
+                                "Uncultured Myoviridae clone KUSW41 (ASV_19)",
+                                "Synechococcus phage S-LKM3 (ASV_20)",
+                                "Uncultured Myoviridae g20_61_47_1%_UW (ASV_21)",
+                                "Unknown_ASV"
+))
+n=168
+replicate_unk <- do.call("rbind", replicate(n, ASV_ID_unk, simplify = FALSE))
+
+write.csv(replicate_unk, "replicate_unk.csv")
+replicate_unk <- read.csv("replicate_unk.csv")
+
+#create new col named samples which duplicates rownames
+samples_unk <- row.names(asv_rel_abun_unk_dup)
+#add col to df
+asv_rel_abun_unk_dup <- add_column(asv_rel_abun_unk_dup, samples_unk, .before=1)
+
+#remove everything after "."
+asv_rel_abun_unk_dup$samples_unk <- gsub("\\..*", "", asv_rel_abun_unk_dup$samples_unk)
+#write.csv(asv_rel_abun_dup, file = "repeat_sample_names.csv")
+
+#transpose
+sample_abundance_unk <- as.data.frame(t(asv_rel_abun_unk))
+
+#one col of all abundances
+stacked_unk <- stack(sample_abundance_unk)
+
+#add stacked to asv_rel_abun_dup df
+asv_rel_abun_unk_dup <- add_column(asv_rel_abun_unk_dup, stacked_unk$values, .after=1)
+write.csv(asv_rel_abun_unk_dup, file="asv_rel_abun_unk.csv")
+
+
+
+
+
+
+
+#duplicate each sample 20 times (number of unique ASVs)
+asv_rel_abun_dup <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 20), ]
+
+#create new row of repeated ASV_IDs 168 times (# of samples) - make sure order is from ASV_1 - end (not order of abundance)
+ASV_ID <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5 (ASV_1)", 
                                 "ASV_2", 
                                 "ASV_3",
-                                "Uncultured cyanomyovirus clone SZCPS18",
-                                "Uncultured Myoviridae g20_82_56_1%_NEQ", 
-                                "Uncultured cyanophage clone BwC24", 
-                                "Uncultured Myoviridae g20_94_44_1%_NEQ", 
-                                "Uncultured cyanomyovirus clone 88268CPSCC8",
-                                "Uncultured cyanophage clone LAB_g20_b26_C12",
-                                "Uncultured cyanophage clone KRB1008M5",
-                                "Uncultured cyanophage clone LAB_g20_b28_D9",
-                                "Uncultured cyanomyovirus clone 45202CPSCC1",
-                                "Uncultured cyanophage clone KRA0808M1",
+                                "Uncultured cyanomyovirus clone SZCPS18 (ASV_4)",
+                                "Uncultured Myoviridae g20_82_56_1%_NEQ (ASV_5)", 
+                                "Uncultured cyanophage clone BwC24 (ASV_6)", 
+                                "Uncultured Myoviridae g20_94_44_1%_NEQ (ASV_7)", 
+                                "Uncultured cyanomyovirus clone 88268CPSCC8 (ASV_8)",
+                                "Uncultured cyanophage clone LAB_g20_b26_C12 (ASV_9)",
+                                "Uncultured cyanophage clone KRB1008M5 (ASV_10)",
+                                "Uncultured cyanophage clone LAB_g20_b28_D9 (ASV_11)",
+                                "Uncultured cyanomyovirus clone 45202CPSCC1 (ASV_12)",
+                                "Uncultured cyanophage clone KRA0808M1 (ASV_13)",
                                 "ASV_14",
-                                "Cyanophage LLM-cg20-1 clone LLM-cg20-1",
+                                "Cyanophage LLM-cg20-1 clone LLM-cg20-1 (ASV_15)",
                                 "ASV_16",
-                                "Cyanophage S-RIM isolate S-RIM5"
+                                "Cyanophage S-RIM isolate S-RIM5 (ASV_18)",
+                                "Uncultured Myoviridae clone KUSW41 (ASV_19)",
+                                "Synechococcus phage S-LKM3 (ASV_20)",
+                                "Uncultured Myoviridae g20_61_47_1%_UW (ASV_21)"
 ))
 n=168
 replicate <- do.call("rbind", replicate(n, ASV_ID, simplify = FALSE))
 
-#write.csv(replicate, "replicate.csv")
+write.csv(replicate, "replicate.csv")
 replicate <- read.csv("replicate.csv")
 
 #add ASV_ID col to asv_rel_abun df
@@ -100,9 +180,11 @@ stacked <- stack(sample_abundance)
 
 #add stacked to asv_rel_abun_dup df
 asv_rel_abun_dup <- add_column(asv_rel_abun_dup, stacked$values, .after=1)
-#write.csv(asv_rel_abun_dup, file="asv_rel_abun.csv")
+write.csv(asv_rel_abun_dup, file="asv_rel_abun.csv")
 
-# final_asv_rel_abun <- select(asv_rel_abun_dup, "samples", "ASV_ID", "stacked$values")
+### TODO ADD REPLICATE COLUMN TO ASV_REL_ABUN FILE AND DELETE UNNECESSARY COLS
+
+#final_asv_rel_abun <- select(asv_rel_abun_dup, "samples", "ASV_ID", "stacked$values")
 # names(final_asv_rel_abun)[names(final_asv_rel_abun)=="stacked$values"] <- "abundance"
 # 
 # write.csv(final_asv_rel_abun, file="relative_abundance.csv")
