@@ -10,12 +10,13 @@ library(MASS)
 library(tidyverse)
 setwd("~/Documents/GitHub/PBIN")
 
-# meta_table <- meta#[complete.cases(meta),]
+#load in data
 abund_table <- read.table("data/ASVs_counts_copy.tsv", header = T, row.names = 1, check.names = F)
-enviro_var <- read.csv("data/metadata3.csv", row.names=1, header=T)
-#change to data format
-enviro_var[1] <- as.Date(enviro_var$Date)
+#transform asv density as a proportion of the sum of all densities
+abund_table3 <-decostand(abund_table, method="hellinger")
 
+#load metadata
+enviro_var <- read.csv("data/metadata3.csv", row.names=1, header=T)
 #standardize environmental data
 enviro_var[,c(7:12)]<-decostand(enviro_var[,c(7:12)], method="standardize")
 
@@ -43,10 +44,10 @@ complete_env_keep <- env_keep[complete.cases(env_keep), ]
 complete_env_keep %>% dplyr::glimpse()
 summary(complete_env_keep)
 
-abundance <- t(data.matrix(abund_table))
+abundance <- t(data.matrix(abund_table3))
 
 #look at the species' distribution frequencies
-(viral_ab <- table(unlist(abundance)))
+(viral_ab <- table(unlist(abund_table3)))
 # barplot(viral_ab, las=1, xlab = "Abundance class", ylab="Frequency")
 
 #see how many absences
@@ -72,12 +73,6 @@ length(setdiff(abund_name, env_row_name))
 #remove rows (samples) that aren't in env_var from abundance
 abundance_removed <- abundance[!(row.names(abundance) %in% row_remove), ]
 
-#transform repsonse variables
-#The transformation consists of expressing each fish density as a proportion of the sum of all densities 
-#in the analytical unit and taking the square root of the resulting value (Legendre and Gallagher 2001).
-#The square-root portion of the transformation decreases the importance of the most abundant species.
-abun_norm <- decostand(abundance_removed, "hellinger")
-
 # dim(abun_norm)
 # str(abun_norm)
 # head(abun_norm)
@@ -92,12 +87,73 @@ head(complete_env_keep)
 summary(complete_env_keep)
 #pairs(env_keep, main="Bivariate Plots of the Environmental Data" ) 
 
-# #Standardize the environmental data (11 variables) using the function decostand() in vegan.
-# env_std <- decostand(env_keep, method = "standardize")
-# apply(env_std, 2, mean) #centered data (mean~0)
-# apply(env_std, 2, sd) #scaled data (std dev=1)
+#Standardize the environmental data
+apply(complete_env_keep[,c(6:11)], 2, mean) #centered data (mean~0)
+apply(complete_env_keep[,c(6:11)], 2, sd) #scaled data (std dev=1)
 
 ######## RDA #######
+
+
+#Use adonis to find significant environmental variables
+(abund_table.adonis <- adonis(abundance_removed ~ Tot_P + Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + 
+                               Avg_temp, 
+                             data=complete_env_keep, permutations = 9999))
+#Extract the best variables
+(bestEnvVariables<-rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)"<=0.05])
+#Remove last two NA entries
+(bestEnvVariables<-bestEnvVariables[!is.na(bestEnvVariables)])
+#Only use those environmental variables in cca that were found significant
+eval(parse(text=paste("sol <- rda(abundance_removed ~ ",do.call(paste,c(as.list(bestEnvVariables),sep=" + ")),",data=complete_env_keep)",sep="")))
+#You can use the following to use all the environmental variables
+#sol<-cca(abund_table ~ ., data=meta_table2)
+scrs<-scores(sol,display=c("sp","wa","lc","bp","cn"),scaling=2)
+#Extract site data first
+df_sites<-data.frame(scrs$sites,bloom=as.factor(complete_env_keep[,5]),Site=as.factor(complete_env_keep[,3]),Months=as.factor(complete_env_keep[,1]))
+colnames(df_sites)<-c("x","y","bloom","Site","Months")
+#Draw sites
+p<-ggplot()
+p<-p+geom_point(data=df_sites,aes(x,y,colour=bloom),size=4)
+p<-p+labs(x="RDA1(%)",y="RDA2(%)")
+#Draw biplots
+multiplier <- vegan:::ordiArrowMul(scrs$biplot)
+# Reference: http://www.inside-r.org/packages/cran/vegan/docs/envfit
+# The printed output of continuous variables (vectors) gives the direction cosines
+# which are the coordinates of the heads of unit length vectors. In plot these are
+# scaled by their correlation (square root of the column r2) so that "weak" predictors
+# have shorter arrows than "strong" predictors. You can see the scaled relative lengths
+# using command scores. The plotted (and scaled) arrows are further adjusted to the
+# current graph using a constant multiplier: this will keep the relative r2-scaled
+# lengths of the arrows but tries to fill the current plot. You can see the multiplier
+# using vegan:::ordiArrowMul(result_of_envfit), and set it with the argument arrow.mul.
+df_arrows<- scrs$biplot*multiplier
+colnames(df_arrows)<-c("x","y")
+df_arrows=as.data.frame(df_arrows)
+p<-p+geom_segment(data=df_arrows, aes(x = 0, y = 0, xend = x, yend = y),
+                  arrow = arrow(length = unit(0.2, "cm")),color="black",alpha=0.6)
+p2<-p+geom_text(data=as.data.frame(df_arrows*1.3),aes(x, y, label = rownames(df_arrows),size=6,face="bold"),color="black",alpha=0.6, size=6, fontface="bold")
+# Draw species
+df_species<- as.data.frame(scrs$species)
+colnames(df_species)<-c("x","y")
+# Either choose text or points
+#p<-p+geom_text(data=df_species,aes(x,y,label=rownames(df_species)))
+#p<-p+geom_point(data=df_species,aes(x,y,shape="Species"))+scale_shape_manual("",values=2)
+p2<-p2+theme_bw()+geom_text(size=6, fontface="bold")
+p3<-p2+scale_colour_manual(values = c("red","blue", "green")) + theme(panel.background = element_rect(fill = "white"))
+p4<-p3+theme(axis.text.x  = element_text(vjust=0.5, size=12), axis.text.y  = element_text(vjust=0.5, size=12), axis.title.x = element_text(size = 15, face = "bold", color="black"),axis.title.y = element_text(size=15, face = "bold",color="black"),panel.border = element_rect(colour = "black", fill=NA, size=1))
+p4
+RsquareAdj (sol)
+anova(sol)
+
+
+
+
+
+
+
+
+
+
+
 
 ?rda
 rda_spe <- rda(abun_norm ~ Months + Years + Site + Period + bloom2 + Tot_P + 
