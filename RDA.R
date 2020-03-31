@@ -16,6 +16,9 @@ enviro_var <- read.csv("data/metadata3.csv", row.names=1, header=T)
 #change to data format
 enviro_var[1] <- as.Date(enviro_var$Date)
 
+#standardize environmental data
+enviro_var[,c(7:12)]<-decostand(enviro_var[,c(7:12)], method="standardize")
+
 enviro_var <- enviro_var %>%
   rename(
     Cumul_precip = "Cumulative_precipitation_t1_t7_mm",
@@ -97,8 +100,8 @@ summary(complete_env_keep)
 ######## RDA #######
 
 ?rda
-rda_spe <- rda(abun_norm ~ Months + Years + Site + Period + bloom2 + Total_Phosphorus_ug + 
-                 Total_Nitrogen_mg + Dissolved_P + Dissolved_N + Cumul_precip + Avg_temp, 
+rda_spe <- rda(abun_norm ~ Months + Years + Site + Period + bloom2 + Tot_P + 
+                 Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + Avg_temp, 
                data = complete_env_keep)
 
 #extract results
@@ -111,18 +114,20 @@ ordiR2step(rda(abun_norm~1, data=complete_env_keep), scope= formula(rda_spe), di
   #the proportion of variation explained by the constraining variables being 0.3542
 
 #retain significant variables only
-signif_env <- subset(env_var, select = c("Months", "Date", "Period", "bloom2", "Cumul_precip"))
+signif_env <- subset(complete_env_keep, select = c("Months", "Years", "Dissolved_N", "Period", "bloom2", 
+                                         "Tot_P", "Avg_temp"))
 
 #rda with significant variables 
 rda_spe_signif <- rda(abun_norm~., data=signif_env)
 summary(rda_spe_signif, display=NULL)
-  #The proportion of the variance of Y (species) explained by the X (env) variables = 35.42% (constrained) 
-  #the unexplained variance of Y = 64.58% (unconstrained)
+screeplot(rda_spe_signif)
+  #The proportion of the variance of Y (species) explained by the X (env) variables = 50.47% (constrained) 
+  #the unexplained variance of Y = 49.53% (unconstrained)
 
 #adjusted R^2
 (adjR2 <- RsquareAdj(rda_spe_signif)$adj.r.squared) 
   #strength of the relationship between X and Y corrected for the number of X variables is 27.94%
-  #the explanatory variables explain 27.94% of the variance in Y (species)
+  #the explanatory variables explain 38.32% of the variance in Y (species)
 
 #test significance of the RDA canonical axis (ie. constraining variables, ie. env var)
 ?anova.cca
@@ -149,10 +154,10 @@ arrows(0,0,
        scores(rda_spe_signif, display="species", choices=c(1), scaling=1),
        scores(rda_spe_signif, display="species", choices=c(2), scaling=1),
        col="black",length=0)
-text(scores(rda_spe_signif, display="species", choices=c(1), scaling=1),
-     scores(rda_spe_signif, display="species", choices=c(2), scaling=1),
-     labels=rownames(scores(rda_spe_signif, display="species", scaling=1)),
-     col="black", cex=0.8)    
+#text(scores(rda_spe_signif, display="species", choices=c(1), scaling=1),
+     # scores(rda_spe_signif, display="species", choices=c(2), scaling=1),
+     # labels=rownames(scores(rda_spe_signif, display="species", scaling=1)),
+     # col="black", cex=0.8)    
 arrows(0,0,
        scores(rda_spe_signif, display="bp", choices=c(1), scaling=1),
        scores(rda_spe_signif, display="bp", choices=c(2), scaling=1),
