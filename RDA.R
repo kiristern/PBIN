@@ -103,6 +103,7 @@ apply(complete_env_keep[,c(6:11)], 2, sd) #scaled data (std dev=1)
 #Remove last two NA entries
 (bestEnvVariables<-bestEnvVariables[!is.na(bestEnvVariables)])
 #Only use those environmental variables in cca that were found significant
+#CCA estimates species optima, regression coefficients, and site scores using a Gaussian weighted-averaging model combined with regression.
 eval(parse(text=paste("sol <- rda(abundance_removed ~ ",do.call(paste,c(as.list(bestEnvVariables),sep=" + ")),",data=complete_env_keep)",sep="")))
 #You can use the following to use all the environmental variables
 #sol<-cca(abund_table ~ ., data=meta_table2)
