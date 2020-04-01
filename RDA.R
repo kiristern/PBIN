@@ -1,5 +1,3 @@
-#https://wiki.qcbs.ca/r_workshop10
-
 library(vegan)
 library(mvpart)
 library(MVPARTwrap)
@@ -20,6 +18,7 @@ enviro_var <- read.csv("data/metadata3.csv", row.names=1, header=T)
 #standardize environmental data
 enviro_var[,c(7:12)]<-decostand(enviro_var[,c(7:12)], method="standardize")
 
+#rename cols
 enviro_var <- enviro_var %>%
   rename(
     Cumul_precip = "Cumulative_precipitation_t1_t7_mm",
@@ -28,11 +27,13 @@ enviro_var <- enviro_var %>%
     Tot_N = "Total_Nitrogen_mg"
   )
 # when tidyverse decides not to load and don't want to restart R:
-# enviro_var <- rename(enviro_var, c("Cumulative_precipitation_t1_t7_mm"="Cumul_precip", "Mean_temperature_t0_t7" = "Avg_temp"))
+# enviro_var <- rename(enviro_var, c("Cumulative_precipitation_t1_t7_mm"="Cumul_precip", 
+#                                    "Mean_temperature_t0_t7" = "Avg_temp",
+#                                    "Total_Nitrogen_mg" = "Tot_N",
+#                                    "Total_Phosphorus_ug" = "Tot_P"))
 
 #Remove rows with too many NAs
 summary(enviro_var)
-#env_var <- enviro_var %>% select(1:6, 12:13)
 
 #remove date col
 env_keep <- enviro_var[,-1]
@@ -47,16 +48,15 @@ summary(complete_env_keep)
 abundance <- t(data.matrix(abund_table3))
 
 #look at the species' distribution frequencies
-(viral_ab <- table(unlist(abund_table3)))
+(viral_ab <- table(unlist(abundance)))
 # barplot(viral_ab, las=1, xlab = "Abundance class", ylab="Frequency")
 
 #see how many absences
 sum(abundance==0)
-
 #look at the proportion of zeros in community data
 sum(abundance==0)/(nrow(abundance)*ncol(abundance))
 
-#comparing removed rows with abundance samples
+#comparing removed env rows with abundance samples
 abund_name <- row.names(abundance)
 env_row_name <- row.names(complete_env_keep)
 
@@ -73,10 +73,10 @@ length(setdiff(abund_name, env_row_name))
 #remove rows (samples) that aren't in env_var from abundance
 abundance_removed <- abundance[!(row.names(abundance) %in% row_remove), ]
 
-# dim(abun_norm)
-# str(abun_norm)
-# head(abun_norm)
-# summary(abun_norm)
+# dim(abundance_removed)
+# str(abundance_removed)
+# head(abundance_removed)
+# summary(abundance_removed)
 
 
 ##### Environmental data #######
@@ -87,24 +87,25 @@ head(complete_env_keep)
 summary(complete_env_keep)
 #pairs(env_keep, main="Bivariate Plots of the Environmental Data" ) 
 
-#Standardize the environmental data
+#View mean and std_dev of standardized environmental data
 apply(complete_env_keep[,c(6:11)], 2, mean) #centered data (mean~0)
 apply(complete_env_keep[,c(6:11)], 2, sd) #scaled data (std dev=1)
 
 ######## RDA #######
 
+#Plotting with ordistep2: only Months and Years are significant
 
-#Use adonis to find significant environmental variables
-(abund_table.adonis <- adonis(abundance_removed ~ Tot_P + Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + 
-                               Avg_temp, 
-                             data=complete_env_keep, permutations = 9999))
-#Extract the best variables
+ # #Use adonis to find significant environmental variables
+(abund_table.adonis <- adonis(abundance_removed ~ Months + Years + Site + Period + bloom2 +
+                                  Tot_P + Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + Avg_temp,
+                                  data=complete_env_keep, permutations = 9999))
+ #Extract the best variables
 (bestEnvVariables<-rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)"<=0.05])
 #Remove last two NA entries
 (bestEnvVariables<-bestEnvVariables[!is.na(bestEnvVariables)])
 #Only use those environmental variables in cca that were found significant
 #CCA estimates species optima, regression coefficients, and site scores using a Gaussian weighted-averaging model combined with regression.
-eval(parse(text=paste("sol <- rda(abundance_removed ~ ",do.call(paste,c(as.list(bestEnvVariables),sep=" + ")),",data=complete_env_keep)",sep="")))
+(eval(parse(text=paste("sol <- rda(abundance_removed ~ ",do.call(paste,c(as.list(bestEnvVariables),sep=" + ")),",data=complete_env_keep)",sep=""))))
 #You can use the following to use all the environmental variables
 #sol<-cca(abund_table ~ ., data=meta_table2)
 scrs<-scores(sol,display=c("sp","wa","lc","bp","cn"),scaling=2)
@@ -112,9 +113,9 @@ scrs<-scores(sol,display=c("sp","wa","lc","bp","cn"),scaling=2)
 df_sites<-data.frame(scrs$sites,bloom=as.factor(complete_env_keep[,5]),Site=as.factor(complete_env_keep[,3]),Months=as.factor(complete_env_keep[,1]))
 colnames(df_sites)<-c("x","y","bloom","Site","Months")
 #Draw sites
-p<-ggplot()
-p<-p+geom_point(data=df_sites,aes(x,y,colour=bloom),size=4)
-p<-p+labs(x="RDA1(%)",y="RDA2(%)")
+(p <- ggplot() +
+  geom_point(data=df_sites,aes(x,y,colour=bloom),size=2) +
+  labs(x="RDA1(%)",y="RDA2(%)"))
 #Draw biplots
 multiplier <- vegan:::ordiArrowMul(scrs$biplot)
 # Reference: http://www.inside-r.org/packages/cran/vegan/docs/envfit
@@ -129,53 +130,62 @@ multiplier <- vegan:::ordiArrowMul(scrs$biplot)
 df_arrows<- scrs$biplot*multiplier
 colnames(df_arrows)<-c("x","y")
 df_arrows=as.data.frame(df_arrows)
-p<-p+geom_segment(data=df_arrows, aes(x = 0, y = 0, xend = x, yend = y),
-                  arrow = arrow(length = unit(0.2, "cm")),color="black",alpha=0.6)
-p2<-p+geom_text(data=as.data.frame(df_arrows*1.3),aes(x, y, label = rownames(df_arrows),size=6,face="bold"),color="black",alpha=0.6, size=6, fontface="bold")
-# Draw species
+
+(p <- p + geom_segment(data=df_arrows,
+                       aes(x = 0, y = 0, xend = x, yend = y),
+                       arrow = arrow(length = unit(0.2, "cm")),color="black",alpha=0.6))
+
+(p2 <- p + geom_text(data=as.data.frame(df_arrows*1.3),
+                    aes(x, y, label = rownames(df_arrows),size=3,face="bold"),
+                    color="black",alpha=0.6, size=2, fontface="bold"))
+
+# Draw species -- NOT INFORMATIVE, TOO MANY CAN'T READ
 df_species<- as.data.frame(scrs$species)
 colnames(df_species)<-c("x","y")
 # Either choose text or points
-#p<-p+geom_text(data=df_species,aes(x,y,label=rownames(df_species)))
-#p<-p+geom_point(data=df_species,aes(x,y,shape="Species"))+scale_shape_manual("",values=2)
-p2<-p2+theme_bw()+geom_text(size=6, fontface="bold")
-p3<-p2+scale_colour_manual(values = c("red","blue", "green")) + theme(panel.background = element_rect(fill = "white"))
-p4<-p3+theme(axis.text.x  = element_text(vjust=0.5, size=12), axis.text.y  = element_text(vjust=0.5, size=12), axis.title.x = element_text(size = 15, face = "bold", color="black"),axis.title.y = element_text(size=15, face = "bold",color="black"),panel.border = element_rect(colour = "black", fill=NA, size=1))
-p4
-RsquareAdj (sol)
+# (p<-p+geom_text(data=df_species,aes(x,y,label=rownames(df_species))))
+# (p<-p+geom_point(data=df_species,aes(x,y,shape="Species"))+scale_shape_manual("",values=2))
+
+(p2<-p2+theme_bw()+geom_text(size=3, fontface="bold"))
+
+(p3<-p2+scale_colour_manual(values = c("red","blue", "green")) + 
+    theme(panel.background = element_rect(fill = "white")))
+
+(p4<-p3+theme(axis.text.x  = element_text(vjust=0.5, size=12), 
+              axis.text.y  = element_text(vjust=0.5, size=12), 
+              axis.title.x = element_text(size = 15, face = "bold", color="black"),
+              axis.title.y = element_text(size=15, face = "bold",color="black"),
+              panel.border = element_rect(colour = "black", fill=NA, size=1)))
+
+RsquareAdj(sol)
 anova(sol)
 
+################################
+#https://wiki.qcbs.ca/r_workshop10
 
+env.z<-subset(complete_env_keep)
 
+spe.rda <- rda(abundance_removed~., data=env.z)
 
-
-
-
-
-
-
-
-
-?rda
-rda_spe <- rda(abun_norm ~ Months + Years + Site + Period + bloom2 + Tot_P + 
-                 Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + Avg_temp, 
-               data = complete_env_keep)
+# rda_spe <- rda(abundance_removed ~ Months + Years + Site + Period + bloom2 + Tot_P + 
+#                  Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + Avg_temp, 
+#                data = complete_env_keep)
 
 #extract results
-summary(rda_spe, display = NULL)
+summary(spe.rda, display = NULL)
+# summary(rda_spe, display = NULL)
   #the explanatory variables (env vars) explain 38.02% of the variance in Y (species)
 
 #select the significant explanatory variables
 ?ordiR2step
-ordiR2step(rda(abun_norm~1, data=complete_env_keep), scope= formula(rda_spe), direction= "forward", R2scope=TRUE, pstep=1000)
+ordiR2step(rda(abundance_removed~1, data=env.z), scope= formula(spe.rda), direction= "forward", R2scope=TRUE, pstep=1000)
   #the proportion of variation explained by the constraining variables being 0.3542
 
 #retain significant variables only
-signif_env <- subset(complete_env_keep, select = c("Months", "Years", "Dissolved_N", "Period", "bloom2", 
-                                         "Tot_P", "Avg_temp"))
+signif_env <- subset(complete_env_keep, select = c("Months", "Years"))
 
 #rda with significant variables 
-rda_spe_signif <- rda(abun_norm~., data=signif_env)
+rda_spe_signif <- rda(abundance_removed~., data=complete_env_keep)
 summary(rda_spe_signif, display=NULL)
 screeplot(rda_spe_signif)
   #The proportion of the variance of Y (species) explained by the X (env) variables = 50.47% (constrained) 
@@ -207,14 +217,14 @@ windows()
 plot(rda_spe_signif, scaling=1, main="Triplot RDA - scaling 1", type="none", xlab=c("RDA1"), ylab=c("RDA2"), xlim=c(-1,1), ylim=c(-1,1))
 points(scores(rda_spe_signif, display="sites", choices=c(1,2), scaling=1),
        pch=21, col="black", bg="steelblue", cex=1.2)
-arrows(0,0,
-       scores(rda_spe_signif, display="species", choices=c(1), scaling=1),
-       scores(rda_spe_signif, display="species", choices=c(2), scaling=1),
-       col="black",length=0)
-#text(scores(rda_spe_signif, display="species", choices=c(1), scaling=1),
-     # scores(rda_spe_signif, display="species", choices=c(2), scaling=1),
-     # labels=rownames(scores(rda_spe_signif, display="species", scaling=1)),
-     # col="black", cex=0.8)    
+# arrows(0,0,
+#        scores(rda_spe_signif, display="species", choices=c(1), scaling=1),
+#        scores(rda_spe_signif, display="species", choices=c(2), scaling=1),
+#        col="black",length=0)
+# text(scores(rda_spe_signif, display="species", choices=c(1), scaling=1),
+#      scores(rda_spe_signif, display="species", choices=c(2), scaling=1),
+#      labels=rownames(scores(rda_spe_signif, display="species", scaling=1)),
+#      col="black", cex=0.8)
 arrows(0,0,
        scores(rda_spe_signif, display="bp", choices=c(1), scaling=1),
        scores(rda_spe_signif, display="bp", choices=c(2), scaling=1),
@@ -231,14 +241,14 @@ windows()
 plot(rda_spe_signif, scaling=2, main="Triplot RDA - scaling 2", type="none", xlab=c("RDA1"), ylab=c("RDA2"), xlim=c(-1,1), ylim=c(-1,1))
 points(scores(rda_spe_signif, display="sites", choices=c(1,2), scaling=2),
        pch=21, col="black", bg="steelblue", cex=1.2)
-arrows(0,0,
-       scores(rda_spe_signif, display="species", choices=c(1), scaling=2)*2,
-       scores(rda_spe_signif, display="species", choices=c(2), scaling=2)*2,
-       col="black",length=0)
-text(scores(rda_spe_signif, display="species", choices=c(1), scaling=2)*2.1,
-     scores(rda_spe_signif, display="species", choices=c(2), scaling=2)*2.1,
-     labels=rownames(scores(rda_spe_signif, display="species", scaling=2)),
-     col="black", cex=0.8)    
+# arrows(0,0,
+#        scores(rda_spe_signif, display="species", choices=c(1), scaling=2)*2,
+#        scores(rda_spe_signif, display="species", choices=c(2), scaling=2)*2,
+#        col="black",length=0)
+# text(scores(rda_spe_signif, display="species", choices=c(1), scaling=2)*2.1,
+#      scores(rda_spe_signif, display="species", choices=c(2), scaling=2)*2.1,
+#      labels=rownames(scores(rda_spe_signif, display="species", scaling=2)),
+#      col="black", cex=0.8)    
 arrows(0,0,
        scores(rda_spe_signif, display="bp", choices=c(1), scaling=2),
        scores(rda_spe_signif, display="bp", choices=c(2), scaling=2),
