@@ -8,88 +8,159 @@ library(stats)
 
 setwd("~/Documents/GitHub/PBIN")
 
-# meta_table <- meta#[complete.cases(meta),]
+#load in data
 abund_table <- read.table("data/ASVs_counts_copy.tsv", header = T, row.names = 1, check.names = F)
+#transform asv density as a proportion of the sum of all densities
+abund_table3 <-decostand(abund_table, method="hellinger")
+
+#load metadata
 enviro_var <- read.csv("data/metadata3.csv", row.names=1, header=T)
-#change to data format
-enviro_var[1] <- as.Date(enviro_var$Date)
+#standardize environmental data
+enviro_var[,c(7:12)]<-decostand(enviro_var[,c(7:12)], method="standardize")
 
-enviro_var <- enviro_var %>% 
+#rename cols
+enviro_var <- enviro_var %>%
   rename(
-    Cumul_precip = Cumulative_precipitation_t1_t7_mm,
-    Avg_temp = Mean_temperature_t0_t7
+    Cumul_precip = "Cumulative_precipitation_t1_t7_mm",
+    Avg_temp = "Mean_temperature_t0_t7",
+    Tot_P = "Total_Phosphorus_ug",
+    Tot_N = "Total_Nitrogen_mg"
   )
+# when tidyverse decides not to load and don't want to restart R:
+# enviro_var <- rename(enviro_var, c("Cumulative_precipitation_t1_t7_mm"="Cumul_precip",
+#                                    "Mean_temperature_t0_t7" = "Avg_temp",
+#                                    "Total_Nitrogen_mg" = "Tot_N",
+#                                    "Total_Phosphorus_ug" = "Tot_P"))
 
+#Remove rows with too many NAs
 summary(enviro_var)
-env_var <- enviro_var %>% select(1:6, 12:13)
-env_var <- env_var[complete.cases(env_var), ]
-env_var %>% dplyr::glimpse()
-summary(env_var)
 
-abundance <- t(data.matrix(abund_table))
+#remove date col
+env_keep <- enviro_var[,-1]
 
+#check how many rows there are without any NAs
+complete.cases(env_keep)
+
+complete_env_keep <- env_keep[complete.cases(env_keep), ]
+complete_env_keep %>% dplyr::glimpse()
+summary(complete_env_keep)
+
+abundance <- t(data.matrix(abund_table3))
+
+#look at the species' distribution frequencies
+(viral_ab <- table(unlist(abundance)))
+# barplot(viral_ab, las=1, xlab = "Abundance class", ylab="Frequency")
+
+#see how many absences
+sum(abundance==0)
+#look at the proportion of zeros in community data
+sum(abundance==0)/(nrow(abundance)*ncol(abundance))
+
+#comparing removed env rows with abundance samples
 abund_name <- row.names(abundance)
-env_row_name <- row.names(env_var)
+env_row_name <- row.names(complete_env_keep)
 
 #check which rows are not the same
 abund_name %in% env_row_name
 #which rows are the same
 #intersect(abund_name, env_row_name)
+
 #specific samples that are not the same
-row_remove <- setdiff(abund_name, env_row_name)
+(row_remove <- setdiff(abund_name, env_row_name))
 #count how many are different
-#length(setdiff(abund_name, env_row_name))
+length(setdiff(abund_name, env_row_name))
 
 #remove rows (samples) that aren't in env_var from abundance
-abundance <- abundance[!(row.names(abundance) %in% row_remove), ]
+abundance_removed <- abundance[!(row.names(abundance) %in% row_remove), ]
 
-#transform repsonse variables
-#The transformation consists of expressing each fish density as a proportion of the sum of all densities 
-#in the analytical unit and taking the square root of the resulting value (Legendre and Gallagher 2001).
-#The square-root portion of the transformation decreases the importance of the most abundant species.
-abun_norm <- decostand(abundance, "hellinger")
 
-# #check where there is NAs
-# env_var %>% 
-#   filter_all(any_vars(is.na(.))) 
+mvpart_formula <- abundance_removed ~ Months + Years + Site + Period + bloom2 + Tot_P + Tot_N + Dissolved_P + 
+                              Dissolved_N + Cumul_precip + Avg_temp
 
-mvpart_formula <- abun_norm ~ Months + Years + Period + Site + bloom2 + Cumul_precip + Avg_temp
+mrt <- mvpart(as.matrix(abundance_removed) ~., complete_env_keep,  legend=FALSE, margin=0.01, cp=0, xv="pick",
+              xval=nrow(abundance_removed), xvmult=100, which=4)
+#The graph shows the relative error RE (in green) and the cross-validated relative error CVRE (in blue) of trees of increasing size. 
+#The red dot indicates the solution with the smallest CVRE, and the orange dot shows the smallest tree within one standard error of CVRE. 
+#It has been suggested that instead of choosing the solution minimizing CVRE, it would be more parsimonious to opt for the smallest tree 
+#for which the CVRE is within one standard error of the tree with the lowest CVRE (Breiman et al. 1984). 
+#The green bars at the top indicate the number of times each size was chosen during the cross-validation process.
 
-tree <- mvpart(abun_norm ~ Period + Months + Years, env_var,
+#The residual error (the reciprocal of the R2 of the model, in this case 5.9%%), 
+#the cross-validated error, and the standard error. 
+#This tree has only two leaves separated by one node. 
+#This node splits the data into two groups at the threshold Dissolved_N value of -0.1542.
+#Each leaf is characterized by a small barplot showing the abundances of the species, its number of 
+#sites and its relative error.
+
+#compare trees
+# Using the CVRE criterion (10-group solution)
+mrt.cvre <- mvpart(as.matrix(abundance_removed)~., complete_env_keep, 
+                         legend=FALSE, margin=0.01, cp=0,xv="pick", 
+                         xval=nrow(abundance_removed), xvmult=100,which=4)
+
+# Choosing ourself the best number of partitions
+mrt.4 <- mvpart(as.matrix(abundance_removed)~., complete_env_keep, 
+                      legend=FALSE, margin=0.01, cp=0, xv="pick", 
+                      xval=nrow(abundance_removed), xvmult=100,which=4)
+
+
+
+
+
+
+
+tree <- mvpart(abundance_removed ~ Dissolved_N + Cumul_precip + Tot_N + Tot_P, complete_env_keep,
                legend=T, cp=0, xv="pick",
-               xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+               xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 plot(tree)
 text(tree)
 
-tree_month <- mvpart(abun_norm ~ Months, env_var,
-               legend=T, cp=0, xv="pick",
-               xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+
+tree_month <- mvpart(as.matrix(abundance_removed)~ Months, complete_env_keep,
+               legend=T, margin=0.01, cp=0, xv="pick",
+               xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
 (month_R2 <- RsquareAdj(tree_month)$adj.r.squared)
 
-tree_year <- mvpart(abun_norm ~ Years, env_var,
-                     legend=T, cp=0, xv="pick",
-                     xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+tree_year <- mvpart(as.matrix(abundance_removed)~ Years, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
-tree_period <- mvpart(abun_norm ~ Period, env_var,
-                     legend=T, cp=0, xv="pick",
-                     xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+tree_site <- mvpart(as.matrix(abundance_removed)~ Site, complete_env_keep,
+                      legend=T, margin=0.01, cp=0, xv="pick",
+                      xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
-tree_site <- mvpart(abun_norm ~ Site, env_var,
-                     legend=T, cp=0, xv="pick",
-                     xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+tree_period <- mvpart(as.matrix(abundance_removed)~ Period, complete_env_keep,
+                      legend=T, margin=0.01, cp=0, xv="pick",
+                      xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
-tree_bloom <- mvpart(abun_norm ~ bloom2, env_var,
-                     legend=T, cp=0, xv="pick",
-                     xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+tree_bloom <- mvpart(as.matrix(abundance_removed)~ bloom2, complete_env_keep,
+                     legend=T, margin=0.01, cp=0, xv="pick",
+                     xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
-tree_precip <- mvpart(abun_norm ~ Cumul_precip, env_var,
-                     legend=T, cp=0, xv="pick",
-                     xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+tree_totP <- mvpart(as.matrix(abundance_removed)~ Tot_P, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
-tree_temp <- mvpart(abun_norm ~ Avg_temp, env_var,
-                     legend=T, cp=0, xv="pick",
-                     xval=nrow(abundance), xvmult=100, which=4, big.pts=T, bars=F)
+tree_totN <- mvpart(as.matrix(abundance_removed)~ Tot_N, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
+
+tree_DisP <- mvpart(as.matrix(abundance_removed)~ Dissolved_P, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
+
+tree_DisN <- mvpart(as.matrix(abundance_removed)~ Dissolved_N, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
+
+tree_precip <- mvpart(as.matrix(abundance_removed)~ Cumul_precip, complete_env_keep,
+                      legend=T, margin=0.01, cp=0, xv="pick",
+                      xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
+
+tree_temp <- mvpart(as.matrix(abundance_removed)~ Avg_temp, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(abundance_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
 #view tree details
 printcp(tree)
