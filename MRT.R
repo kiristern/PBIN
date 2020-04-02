@@ -1,5 +1,6 @@
 #https://bookdown.org/forestgeoguest/mpart/mvpart.html
 
+#run preprocessing from begining of Analysis.R script
 abundance_removed
 complete_env_keep
 
