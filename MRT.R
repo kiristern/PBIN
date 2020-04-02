@@ -1,77 +1,7 @@
 #https://bookdown.org/forestgeoguest/mpart/mvpart.html
 
-library(mvpart)
-library(tidyverse)
-library(dplyr)
-library(vegan)
-library(stats)
-
-setwd("~/Documents/GitHub/PBIN")
-
-#load in data
-abund_table <- read.table("data/ASVs_counts_copy.tsv", header = T, row.names = 1, check.names = F)
-#transform asv density as a proportion of the sum of all densities
-abund_table3 <-decostand(abund_table, method="hellinger")
-
-#load metadata
-enviro_var <- read.csv("data/metadata3.csv", row.names=1, header=T)
-#standardize environmental data
-enviro_var[,c(7:12)]<-decostand(enviro_var[,c(7:12)], method="standardize")
-
-#rename cols
-enviro_var <- enviro_var %>%
-  rename(
-    Cumul_precip = "Cumulative_precipitation_t1_t7_mm",
-    Avg_temp = "Mean_temperature_t0_t7",
-    Tot_P = "Total_Phosphorus_ug",
-    Tot_N = "Total_Nitrogen_mg"
-  )
-# when tidyverse decides not to load and don't want to restart R:
-# enviro_var <- rename(enviro_var, c("Cumulative_precipitation_t1_t7_mm"="Cumul_precip",
-#                                    "Mean_temperature_t0_t7" = "Avg_temp",
-#                                    "Total_Nitrogen_mg" = "Tot_N",
-#                                    "Total_Phosphorus_ug" = "Tot_P"))
-
-#Remove rows with too many NAs
-summary(enviro_var)
-
-#remove date col
-env_keep <- enviro_var[,-1]
-
-#check how many rows there are without any NAs
-complete.cases(env_keep)
-
-complete_env_keep <- env_keep[complete.cases(env_keep), ]
-complete_env_keep %>% dplyr::glimpse()
-summary(complete_env_keep)
-
-abundance <- t(data.matrix(abund_table3))
-
-#look at the species' distribution frequencies
-(viral_ab <- table(unlist(abundance)))
-# barplot(viral_ab, las=1, xlab = "Abundance class", ylab="Frequency")
-
-#see how many absences
-sum(abundance==0)
-#look at the proportion of zeros in community data
-sum(abundance==0)/(nrow(abundance)*ncol(abundance))
-
-#comparing removed env rows with abundance samples
-abund_name <- row.names(abundance)
-env_row_name <- row.names(complete_env_keep)
-
-#check which rows are not the same
-abund_name %in% env_row_name
-#which rows are the same
-#intersect(abund_name, env_row_name)
-
-#specific samples that are not the same
-(row_remove <- setdiff(abund_name, env_row_name))
-#count how many are different
-length(setdiff(abund_name, env_row_name))
-
-#remove rows (samples) that aren't in env_var from abundance
-abundance_removed <- abundance[!(row.names(abundance) %in% row_remove), ]
+abundance_removed
+complete_env_keep
 
 
 mvpart_formula <- abundance_removed ~ Months + Years + Site + Period + bloom2 + Tot_P + Tot_N + Dissolved_P + 
