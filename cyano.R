@@ -40,13 +40,9 @@ head(cyano_taxa)
 count_taxa <- left_join(cyano_names, cyano_taxa, "ASV")
 
 #group by cyanobacteria, microcystis, dolichospermum
-class_keep <- "Cyanobacteria"
-genus_keep <- "Microcystaceae"
-sp_keep <- "Dolichospermum"
-
-head(cyanobacteria <- count_taxa[count_taxa$Class %in% class_keep, ])
-head(microcystis <- count_taxa[count_taxa$Genus %in% genus_keep, ])
-
+cyanobacteria <- count_taxa[grep("Cyanobacteria", count_taxa$Class), ]
+microcystis <- count_taxa[grep("Microcystaceae", count_taxa$Genus), ]
+dolichospermum <- count_taxa[grep("Dolichospermum", count_taxa$ASV.1), ]
 
 #transpose table
 cyano_transpose <- t(cyano_removed)
