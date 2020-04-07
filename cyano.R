@@ -1,7 +1,7 @@
 setwd("~/Documents/GitHub/PBIN/data/cyano")
 
 cyano_counts <- read.table("Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
-cyano_taxa <- read.table("Champ_ASVs_taxonomy.txt", sep = "", fill = TRUE)
+cyano_taxa <- read.table("Champ_ASVs_taxonomy.txt", sep = "", fill = TRUE, header=T)
 cyano <- read.table("Champlain_cyano.txt", fill = TRUE)
 vir_data <- abundance_removed
 
@@ -28,8 +28,8 @@ length(setdiff(colnames(cyano_counts), row.names(vir_data)))
 #remove rows (samples) that aren't in env_var from abundance
 cyano_removed <- cyano_counts[, !(colnames(cyano_counts) %in% cols_remove)]
 
-
-
+#tranform cyano counts to relative abundance
+cyano_removed <-decostand(cyano_removed, method="hellinger")
 
 
 
