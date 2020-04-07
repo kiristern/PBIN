@@ -28,12 +28,31 @@ length(setdiff(colnames(cyano_counts), row.names(vir_data)))
 #remove rows (samples) that aren't in env_var from abundance
 cyano_removed <- cyano_counts[, !(colnames(cyano_counts) %in% cols_remove)]
 
-#tranform cyano counts to relative abundance
-cyano_removed <-decostand(cyano_removed, method="hellinger")
+#transpose table
+cyano_transpose <- t(cyano_removed)
+#get total count of asv
+cyano_tot <- colSums(cyano_transpose)
+#transform to df
+cyano_tot <- as.data.frame(cyano_tot)
+#extract asv_id 
+cyano_asv_id <- row.names(cyano_tot)
+#add asv_ids to df
+cyano_tot$ID=cyano_asv_id
+#add new empty column
+newcol <- "rel_ab"
+cyano_tot[,newcol] <- NA
 
+#get relative abundance function
+get_rel_abun <- function(x){
+  x / sum(asv_tot[1])
+}
 
+#apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
+cyano_tot[3] <- get_rel_abun(cyano_tot[1])
 
-
+#sort relative abundance from largest to smallest
+cyano_tot <- arrange(cyano_tot, desc(rel_ab))
+(top20 <- head(cyano_tot, 20))
 
 
 
