@@ -27,6 +27,26 @@ length(setdiff(colnames(cyano_counts), row.names(vir_data)))
 
 #remove rows (samples) that aren't in env_var from abundance
 cyano_removed <- cyano_counts[, !(colnames(cyano_counts) %in% cols_remove)]
+dim(cyano_removed)
+
+head(cyano_removed)
+#write.csv(cyano_removed, "relevantsamples.csv")
+
+cyano_names <- read.csv("relevantsamples.csv")
+head(cyano_names)
+head(cyano_taxa)
+
+#merge dfs
+count_taxa <- left_join(cyano_names, cyano_taxa, "ASV")
+
+#group by cyanobacteria, microcystis, dolichospermum
+class_keep <- "Cyanobacteria"
+genus_keep <- "Microcystaceae"
+sp_keep <- "Dolichospermum"
+
+head(cyanobacteria <- count_taxa[count_taxa$Class %in% class_keep, ])
+head(microcystis <- count_taxa[count_taxa$Genus %in% genus_keep, ])
+
 
 #transpose table
 cyano_transpose <- t(cyano_removed)
@@ -46,16 +66,6 @@ cyano_tot[,newcol] <- NA
 get_rel_abun <- function(x){
   x / sum(asv_tot[1])
 }
-
-#apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
-cyano_tot[3] <- get_rel_abun(cyano_tot[1])
-
-#sort relative abundance from largest to smallest
-cyano_tot <- arrange(cyano_tot, desc(rel_ab))
-(top20 <- head(cyano_tot, 20))
-
-
-
 
 
 
