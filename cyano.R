@@ -19,3 +19,24 @@ colnames(cyano_counts)[c(1, 5:63, 65:135)] <- sub(".[^.]+$", "", colnames(cyano_
 
 #compare samples in common between vir and cyano
 row.names(vir_data) %in% colnames(cyano_counts)
+
+#specific samples that are not the same
+(cols_remove <- setdiff(colnames(cyano_counts), row.names(vir_data)))
+#count how many are different
+length(setdiff(colnames(cyano_counts), row.names(vir_data)))
+
+#remove rows (samples) that aren't in env_var from abundance
+cyano_removed <- cyano_counts[, !(colnames(cyano_counts) %in% cols_remove)]
+
+
+
+
+
+
+
+
+
+
+
+
+
