@@ -28,7 +28,6 @@ length(setdiff(colnames(cyano_counts), row.names(vir_data)))
 #remove rows (samples) that aren't in env_var from abundance
 cyano_removed <- cyano_counts[, !(colnames(cyano_counts) %in% cols_remove)]
 dim(cyano_removed)
-
 head(cyano_removed)
 #write.csv(cyano_removed, "relevantsamples.csv")
 
@@ -36,13 +35,6 @@ cyano_names <- read.csv("relevantsamples.csv")
 head(cyano_names)
 head(cyano_taxa)
 
-#merge dfs
-count_taxa <- left_join(cyano_names, cyano_taxa, "ASV")
-
-#group by cyanobacteria, microcystis, dolichospermum
-cyanobacteria <- count_taxa[grep("Cyanobacteria", count_taxa$Class), ]
-microcystis <- count_taxa[grep("Microcystaceae", count_taxa$Genus), ]
-dolichospermum <- count_taxa[grep("Dolichospermum", count_taxa$ASV.1), ]
 
 #transpose table
 cyano_transpose <- t(cyano_removed)
@@ -53,7 +45,7 @@ cyano_tot <- as.data.frame(cyano_tot)
 #extract asv_id 
 cyano_asv_id <- row.names(cyano_tot)
 #add asv_ids to df
-cyano_tot$ID=cyano_asv_id
+cyano_tot$ASV=cyano_asv_id
 #add new empty column
 newcol <- "rel_ab"
 cyano_tot[,newcol] <- NA
@@ -63,5 +55,15 @@ get_rel_abun <- function(x){
   x / sum(asv_tot[1])
 }
 
+#apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
+cyano_tot[3] <- get_rel_abun(cyano_tot[1])
+
+#merge dfs
+count_taxa <- left_join(cyano_tot, cyano_taxa, "ASV")
+
+#group by cyanobacteria, microcystis, dolichospermum
+cyanobacteria <- count_taxa[grep("Cyanobacteria", count_taxa$Phylum), ]
+microcystis <- count_taxa[grep("Microcystaceae", count_taxa$Family), ]
+dolichospermum <- count_taxa[grep("Dolichospermum", count_taxa$Species), ]
 
 
