@@ -38,6 +38,8 @@ head(cyano_taxa)
 
 #transpose table
 cyano_transpose <- t(cyano_removed)
+#transform asv density as a proportion of the sum of all densities
+cyano_rel_abundance <-decostand(cyano_transpose, method="hellinger")
 #get total count of asv
 cyano_tot <- colSums(cyano_transpose)
 #transform to df
@@ -47,7 +49,7 @@ cyano_asv_id <- row.names(cyano_tot)
 #add asv_ids to df
 cyano_tot$ASV=cyano_asv_id
 #add new empty column
-newcol <- "rel_ab"
+newcol <- "tot_rel_ab"
 cyano_tot[,newcol] <- NA
 
 #get relative abundance function
@@ -60,10 +62,20 @@ cyano_tot[3] <- get_rel_abun(cyano_tot[1])
 
 #merge dfs
 count_taxa <- left_join(cyano_tot, cyano_taxa, "ASV")
+head(count_taxa)
+
+#tranpose cyano_rel_abundance back
+cyano_trans <- t(cyano_rel_abundance)
+cyano_trans <- as.data.frame(cyano_trans)
+#create new col with replicated ASV name
+cyano_trans$ASV=cyano_asv_id
+
+#merge dfs
+cyano_df <- left_join(cyano_trans, count_taxa, "ASV")
 
 #group by cyanobacteria, microcystis, dolichospermum
-cyanobacteria <- count_taxa[grep("Cyanobacteria", count_taxa$Phylum), ]
-microcystis <- count_taxa[grep("Microcystaceae", count_taxa$Family), ]
-dolichospermum <- count_taxa[grep("Dolichospermum", count_taxa$Species), ]
+head(cyanobacteria <- cyano_df[grep("Cyanobacteria", cyano_df$Phylum), ])
+head(microcystis <- cyano_df[grep("Microcystaceae", cyano_df$Family), ])
+head(dolichospermum <- cyano_df[grep("Dolichospermum", cyano_df$Species), ])
 
 
