@@ -1,52 +1,26 @@
-library(breakaway)
-packageVersion("breakaway")
-library(phyloseq)
-packageVersion("phyloseq")
-library(DivNet)
-library(tidyverse)
-library(qiime2R)
-library(mvpart)
-library(vegan)
-library(ggplot2)
-library(dplyr)
-library(tibble)
-
-setwd("~/Documents/GitHub/PBIN/data")
-
-#upload ASV count table and metadata
-ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
-meta <- read.csv("metadata3.csv", row.names=1, header=T)
-
-meta$Years <- as.factor(meta$Years)
-
-#ASV count table to phyloseq table
-count_phy <- otu_table(ASV_count, taxa_are_rows=T)
-sample_info <- sample_data(meta)
-viral_physeq <- phyloseq(count_phy, sample_info)
-
-#upload viral tree
-virTree<-read_tree("viral_tree")
-
-#add tree to phyloseq object
-viral_physeq <- phyloseq(count_phy, sample_info, virTree)
-
-#view ASV count (top 10)
-sort(taxa_sums(viral_physeq), decreasing = T)[1:10]
-
-#check data
-print(viral_physeq)
-
 #####Abundance#####
 df <- read.csv("FINAL_ASV_TAXA_ABUN.csv")
 
+#TODO: make sure col name is "abundance"
 df %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
   ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
-  geom_bar(stat = "identity", show.legend = FALSE)
+  geom_bar(stat = "identity", show.legend = T)
 
 df_unk <- read.csv("rel_ab_top20_unknown_FINAL.csv")
 df_unk %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
   ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
   geom_bar(stat = "identity", show.legend = TRUE)
+
+cyanobacteria <- read.csv("data/cyano/cyano_samples.csv", header = T)
+microcystis <- read.csv("data/cyano/micro.csv")
+dolichospermum <- read.csv("data/cyano/dolicho.csv")
+
+
+
+
+
+
+
 
 ##ordination
 ##https://joey711.github.io/phyloseq/plot_ordination-examples.html
@@ -122,10 +96,10 @@ plot(ba, viral_physeq, color="Years")
 
 #for variables Years and bloom2
 ba_alpha = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
-           "Year" = viral_physeq %>% sample_data %>% get_variable("Years"))
+           "Bloom" = viral_physeq %>% sample_data %>% get_variable("bloom2"))
 
-ba_plot <-  ggplot(ba_alpha, aes(x = Bloom, y = ba_observed_richness))+
-  geom_point()
+(ba_plot <-  ggplot(ba_alpha, aes(x = Bloom, y = ba_observed_richness))+
+  geom_point())
 
 #geom_crossbar()
 ba_plot + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
@@ -180,5 +154,19 @@ bt$table
 #Run in parallel
 dv_viral_ps <- divnet(viral_physeq, ncores = 4)
 
+
+
+
+######## Beta Diversity ##########
+# PCoA plot using the unweighted UniFrac and JSD as distance
+unifrac_dist <- phyloseq::distance(viral_physeq, method="unifrac", weighted=F)
+jsd_dist <- phyloseq::distance(viral_physeq, "jsd")
+
+ordination <- ordinate(viral_physeq, method="PCoA", distance=unifrac_dist)
+plot_ordination(viral_physeq, ordination, color="Years") + theme(aspect.ratio=1)
+
+#Test whether the Years/Months differ significantly from each other using the permutational ANOVA (PERMANOVA) analysis:
+adonis(unifrac_dist ~ sample_data(viral_physeq)$Years)
+adonis(unifrac_dist ~ sample_data(viral_physeq)$Months)
 
 
