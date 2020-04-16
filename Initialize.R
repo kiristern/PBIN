@@ -69,11 +69,33 @@ enviro_var <- enviro_var %>%
 #                                    "Total_Nitrogen_mg" = "Tot_N",
 #                                    "Total_Phosphorus_ug" = "Tot_P"))
 
+#add cyano data to meta
+cyano_var <- read.table("data/cyano/Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
+cyano_var <- cyano_var %>% select(1:135)
+#remove X in front of date
+colnames(cyano_var) <- substring(colnames(cyano_var), 2)
+cyano_var_sum <- colSums(cyano_var)
+cyano_var_sum <- as.data.frame(cyano_var_sum)
+# write.csv(cyano_var_sum, "cyano_var_sum.csv")
+env_cy <- read.csv("data/metadata_w_cyano.csv")
+colnames(env_cy)
+#standardize environmental data
+env_cy[,c(8:14)]<-decostand(env_cy[,c(8:14)], method="standardize")
+
+#rename cols
+env_cy <- env_cy %>%
+  rename(
+    Cumul_precip = "Cumulative_precipitation_t1_t7_mm",
+    Avg_temp = "Mean_temperature_t0_t7",
+    Tot_P = "Total_Phosphorus_ug",
+    Tot_N = "Total_Nitrogen_mg"
+  )
+
 #Remove rows with too many NAs
-summary(enviro_var)
+summary(env_cy)
 
 #remove date col
-env_keep <- enviro_var[,-1]
+env_keep <- env_cy[,-c(1,2)]
 
 #check how many rows there are without any NAs
 complete.cases(env_keep)
@@ -109,3 +131,10 @@ length(setdiff(abund_name, env_row_name))
 
 #remove rows (samples) that aren't in env_var from abundance
 abundance_removed <- abundance[!(row.names(abundance) %in% row_remove), ]
+
+
+
+
+
+
+
