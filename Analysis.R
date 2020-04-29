@@ -166,8 +166,14 @@ dv_viral_ps <- divnet(viral_physeq, ncores = 4)
 unifrac_dist <- phyloseq::distance(viral_physeq, method="unifrac", weighted=T)
 jsd_dist <- sqrt(phyloseq::distance(viral_physeq, "jsd")) #jsd is a semi-metric
 
+#change distance=unifrac_dist to jsd_dist
 ordination <- ordinate(viral_physeq, method="PCoA", distance=jsd_dist)
-plot_ordination(viral_physeq, ordination, color="Years") + theme(aspect.ratio=1) + theme_classic()
+plot_ordination(viral_physeq, ordination, color="Years") + 
+  #stat_ellipse(type = "norm", linetype = 2) +
+  stat_ellipse(type = "t") +
+  theme(aspect.ratio=1) + 
+  theme_classic() #+
+  #theme_bw()
 
 #Test whether the Years/Months differ significantly from each other using the permutational ANOVA (PERMANOVA) analysis:
 adonis(unifrac_dist ~ sample_data(viral_physeq)$Years)
