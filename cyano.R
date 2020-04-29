@@ -82,17 +82,17 @@ cyano_samples <- cyanobacteria %>% select(1:71)
 #remove everything after last period in colnames
 #check which ones end in 1; "$" anchors 1 to the end -- ATTN: incl dates that end in 2011, need to sort
 grep(".1$", colnames(cyano_samples))
-colnames(cyano_samples)[c(2,4,7,9,11,13,
-                          15,18,20,22,24,
-                          26,28,30,33,35,
-                          37,40,42,45,47,
-                          49,51,53,55,57,
-                          59,61,64,67,69,71)] <- sub(".1$", "", colnames(cyano_samples)[c(2,4,7,9,11,13,
-                                                                                          15,18,20,22,24,
-                                                                                          26,28,30,33,35,
-                                                                                          37,40,42,45,47,
-                                                                                          49,51,53,55,57,
-                                                                                          59,61,64,67,69,71)])
+# colnames(cyano_samples)[c(2,4,7,9,11,13,
+                          # 15,18,20,22,24,
+                          # 26,28,30,33,35,
+                          # 37,40,42,45,47,
+                          # 49,51,53,55,57,
+                          # 59,61,64,67,69,71)] <- sub(".1$", "", colnames(cyano_samples)[c(2,4,7,9,11,13,
+                          #                                                                 15,18,20,22,24,
+                          #                                                                 26,28,30,33,35,
+                          #                                                                 37,40,42,45,47,
+                          #                                                                 49,51,53,55,57,
+                          #                                                                 59,61,64,67,69,71)])
 # #remove X at beginning of date
 # colnames(cyano_samples) <- sub(".","",colnames(cyano_samples))
 
@@ -104,34 +104,35 @@ microcystis <- cyano_df[grep("Microcystaceae", cyano_df$Family), ]
 colnames(microcystis)
 micro_samples <- microcystis %>% select(1:71)
 grep(".1$", colnames(micro_samples))
-colnames(micro_samples)[c(2,4,7,9,11,13,
-                          15,18,20,22,24,
-                          26,28,30,33,35,
-                          37,40,42,45,47,
-                          49,51,53,55,57,
-                          59,61,64,67,69,71)] <- sub(".1$", "", colnames(micro_samples)[c(2,4,7,9,11,13,
-                                                                                          15,18,20,22,24,
-                                                                                          26,28,30,33,35,
-                                                                                          37,40,42,45,47,
-                                                                                          49,51,53,55,57,
-                                                                                          59,61,64,67,69,71)])
+# colnames(micro_samples)[c(2,4,7,9,11,13,
+                          # 15,18,20,22,24,
+                          # 26,28,30,33,35,
+                          # 37,40,42,45,47,
+                          # 49,51,53,55,57,
+                          # 59,61,64,67,69,71)] <- sub(".1$", "", colnames(micro_samples)[c(2,4,7,9,11,13,
+                          #                                                                 15,18,20,22,24,
+                          #                                                                 26,28,30,33,35,
+                          #                                                                 37,40,42,45,47,
+                          #                                                                 49,51,53,55,57,
+                          #                                                                 59,61,64,67,69,71)])
+colnames(micro_samples) <- as.Date(colnames(micro_samples), "%d.%m.%Y")
 # write.csv(micro_samples, "micro_samples.csv")
 
 
 
 dolichospermum <- cyano_df[grep("Dolichospermum", cyano_df$Species), ]
 doli_samples <- dolichospermum %>% select(1:71)
-colnames(doli_samples)[c(2,4,7,9,11,13,
-                          15,18,20,22,24,
-                          26,28,30,33,35,
-                          37,40,42,45,47,
-                          49,51,53,55,57,
-                          59,61,64,67,69,71)] <- sub(".1$", "", colnames(doli_samples)[c(2,4,7,9,11,13,
-                                                                                          15,18,20,22,24,
-                                                                                          26,28,30,33,35,
-                                                                                          37,40,42,45,47,
-                                                                                          49,51,53,55,57,
-                                                                                          59,61,64,67,69,71)])
-# #remove X at beginning of date
-write.csv(doli_samples, "doli_samples.csv")
+# colnames(doli_samples)[c(2,4,7,9,11,13,
+                          # 15,18,20,22,24,
+                          # 26,28,30,33,35,
+                          # 37,40,42,45,47,
+                          # 49,51,53,55,57,
+                          # 59,61,64,67,69,71)] <- sub(".1$", "", colnames(doli_samples)[c(2,4,7,9,11,13,
+                          #                                                                 15,18,20,22,24,
+                          #                                                                 26,28,30,33,35,
+                          #                                                                 37,40,42,45,47,
+                          #                                                                 49,51,53,55,57,
+                          #                                                                 59,61,64,67,69,71)])
+colnames(doli_samples) <- as.Date(colnames(doli_samples), "%d.%m.%Y")
+# write.csv(doli_samples, "doli_samples.csv")
 

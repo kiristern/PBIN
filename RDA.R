@@ -2,7 +2,11 @@
 abundance_removed
 complete_env_keep
 
-
+enviro_var<-meta
+summary(enviro_var)
+env_var <- enviro_var %>% select(1:6,11:12)
+env_var<-env_var[complete.cases(env_var),]
+dim(env_var)
 # dim(abundance_removed)
 # str(abundance_removed)
 # head(abundance_removed)

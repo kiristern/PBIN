@@ -1,20 +1,22 @@
+setwd("~/Documents/GitHub/PBIN/data")
+
 #####Abundance#####
 df <- read.csv("FINAL_ASV_TAXA_ABUN.csv")
 
 #TODO: make sure col name is "abundance"
 df %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
   ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
-  geom_bar(stat = "identity", show.legend = T)
+  geom_bar(stat = "identity", width=1, show.legend = F) +
+  theme_minimal()
 
-df_unk <- read.csv("rel_ab_top20_unknown_FINAL.csv")
-df_unk %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
-  ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
-  geom_bar(stat = "identity", show.legend = TRUE)
+# df_unk <- read.csv("rel_ab_top20_unknown_FINAL.csv")
+# df_unk %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
+#   ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
+#   geom_bar(stat = "identity", show.legend = F)
 
-cyanobacteria <- read.csv("data/cyano/cyano_samples.csv", header = T)
-microcystis <- read.csv("data/cyano/micro.csv")
-dolichospermum <- read.csv("data/cyano/dolicho.csv")
-
+cya <- read.csv("cyano/cyano_samples.csv")
+mic <- read.csv("cyano/micro_samples.csv")
+dol <- read.csv("cyano/doli_samples.csv")
 
 
 
@@ -44,7 +46,7 @@ viral_physeq %>% sample_data
 #look at observed richness plot colour by month
 observed <- sample_richness(viral_physeq)
 summary(observed)
-plot(observed, viral_physeq, color="Months")
+plot(observed, viral_physeq, color="Years")
 
 #observed richness 
 #Sequencing depth by Year
@@ -72,6 +74,7 @@ plot(observed, viral_physeq, color="Months")
 ba <- breakaway(viral_physeq)
 ba
 plot(ba, viral_physeq, color="Years")
+abline(lm(viral_physeq))
 
 #get sample names
 # x <- viral_physeq %>% sample_data %>% rownames()
@@ -103,12 +106,13 @@ ba_alpha = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
 
 #geom_crossbar()
 ba_plot + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
-                       geom="crossbar", width=0.5)
+                       geom="crossbar", width=0.5) + theme_minimal()
 
-#geom_errorbar()
-ba_plot + stat_summary(fun.data=mean_sdl, fun.args = list(mult=1), 
-               geom="errorbar", color="red", width=0.2) +
-  stat_summary(fun.y=mean, geom="point", color="red")
+
+# #geom_errorbar()
+# ba_plot + stat_summary(fun.data=mean_sdl, fun.args = list(mult=1), 
+#                geom="errorbar", color="red", width=0.2) +
+#   stat_summary(fun.y=mean, geom="point", color="red")
 
 
 #look at just one sample
@@ -159,11 +163,11 @@ dv_viral_ps <- divnet(viral_physeq, ncores = 4)
 
 ######## Beta Diversity ##########
 # PCoA plot using the unweighted UniFrac and JSD as distance
-unifrac_dist <- phyloseq::distance(viral_physeq, method="unifrac", weighted=F)
-jsd_dist <- phyloseq::distance(viral_physeq, "jsd")
+unifrac_dist <- phyloseq::distance(viral_physeq, method="unifrac", weighted=T)
+jsd_dist <- sqrt(phyloseq::distance(viral_physeq, "jsd")) #jsd is a semi-metric
 
-ordination <- ordinate(viral_physeq, method="PCoA", distance=unifrac_dist)
-plot_ordination(viral_physeq, ordination, color="Years") + theme(aspect.ratio=1)
+ordination <- ordinate(viral_physeq, method="PCoA", distance=jsd_dist)
+plot_ordination(viral_physeq, ordination, color="Years") + theme(aspect.ratio=1) + theme_classic()
 
 #Test whether the Years/Months differ significantly from each other using the permutational ANOVA (PERMANOVA) analysis:
 adonis(unifrac_dist ~ sample_data(viral_physeq)$Years)
