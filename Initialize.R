@@ -12,18 +12,23 @@ library(dplyr)
 library(tibble)
 library(tidyverse)
 library(stats)
+library(psych)
 
 setwd("~/Documents/GitHub/PBIN/data")
 
 #upload ASV count table and metadata
 ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
-meta <- read.csv("metadata3.csv", row.names=1, header=T)
+#meta <- read.csv("metadata3.csv", row.names=1, header=T)
+meta_cyano <- read.csv("metadata_w_cyano.csv", row.names = 1, header = T)
 
-meta$Years <- as.factor(meta$Years)
+
+#meta$Years <- as.factor(meta$Years)
+meta_cyano$Years <- as.factor(meta_cyano$Years)
+
 
 #ASV count table to phyloseq table
 count_phy <- otu_table(ASV_count, taxa_are_rows=T)
-sample_info <- sample_data(meta)
+sample_info <- sample_data(meta_cyano)
 viral_physeq <- phyloseq(count_phy, sample_info)
 
 #upload viral tree
@@ -38,7 +43,16 @@ sort(taxa_sums(viral_physeq), decreasing = T)[1:10]
 #check data
 print(viral_physeq)
 
-
+#transform to relative abundance
+relative_vir_seq  <- transform_sample_counts(viral_physeq, function(x) x / sum(x) )
+#remove taxa not seen more than 3 times in at least 5% of the samples. This protects against ASV with small mean & trivially large coef of var
+filt_vir_seq <- filter_taxa(viral_physeq, function(x) sum(x > 10) > (0.05*length(x)), TRUE)
+#standardize abundances to the median sequencing depth
+total <- median(sample_sums(filt_vir_seq))
+standf <- function(x, t=total) round(t * (x / sum(x)))
+st_filt_virseq <- transform_sample_counts(filt_vir_seq, standf)
+#filter the taxa using a cutoff of 3.0 for the coef of var
+virseq <- filter_taxa(st_filt_virseq, function(x) sd(x)/mean(x) > 3.0, TRUE)
 
 
 ######## prep data for MRT and RDA ########
@@ -51,7 +65,7 @@ abund_table <- read.table("data/ASVs_counts_copy.tsv", header = T, row.names = 1
 vir_abund_helli <-decostand(abund_table, method="hellinger")
 
 #load metadata
-enviro_var <- meta
+enviro_var <- meta_cyano
 #standardize environmental data
 enviro_var[,c(7:12)]<-decostand(enviro_var[,c(7:12)], method="standardize")
 
@@ -104,7 +118,18 @@ summary(env_cy)
 #remove date col
 #env_keep <- env_cy[,-1]
 #remove certain env variables to reduce number of NAs
-env_keep <- env_cy %>% select("Months", "bloom2", "Period", "Cumul_precip", "Avg_temp", "Site", "Years", "cyano_count")
+env_keep <- env_cy %>% select("Months",
+                              "Years",
+                              "Site",
+                              "Period",
+                              "bloom2",
+                              "Tot_P",
+                              "Tot_N",
+                              "Dissolved_P", 
+                              "Dissolved_N",
+                              "Cumul_precip",
+                              "Avg_temp",
+                              "cyano_count")
 
 
 summary(env_keep)
@@ -148,7 +173,6 @@ length(setdiff(abund_name, env_row_name))
 vir_abun_removed <- vir_abundance[!(row.names(vir_abundance) %in% row_remove), ]
 
 
-
-
-
+#Check how many taxa above 1000 occurences
+filter_taxa(viral_physeq, function(x) var(x) > 100, TRUE)
 
