@@ -6,13 +6,16 @@ cyano <- read.table("Champlain_cyano.txt", fill = TRUE)
 vir_data <- vir_abun_removed
 
 #extract viral data sample dates
+row.names(vir_data)
 row.names(vir_data) <- sub("*._*._*._*._*._*._*._","", row.names(vir_data))
 #change "_" to "."
 row.names(vir_data) <- gsub("_", ".", row.names(vir_data))
+row.names(vir_data)
 #remove everything after last "."
 # row.names(vir_data)<-sub(".[^.]+$", "", row.names(vir_data))
 
 #remove X at beginning of date
+colnames(cyano_counts)
 colnames(cyano_counts)[1:135] <- substring(colnames(cyano_counts)[1:135], 2)
 cyano_counts <- cyano_counts %>% select(1:135)
 #remove everything after last period in colnames
@@ -36,6 +39,8 @@ cyano_names <- read.csv("relevantsamples.csv")
 head(cyano_names)
 head(cyano_taxa)
 
+#create col with ASV in cyano_taxa in order to merge with second df
+cyano_taxa$ASV <- row.names(cyano_taxa)
 
 #transpose table
 cyano_transpose <- t(cyano_removed)
@@ -78,7 +83,7 @@ cyano_df <- left_join(cyano_trans, count_taxa, "ASV")
 head(cyanobacteria <- cyano_df[grep("Cyanobacteria", cyano_df$Phylum), ])
 
 #keep only certain cols
-cyano_samples <- cyanobacteria %>% select(1:71)
+cyano_samples <- cyanobacteria %>% select(1:66)
 
 #remove everything after last period in colnames
 #check which ones end in 1; "$" anchors 1 to the end -- ATTN: incl dates that end in 2011, need to sort
@@ -103,7 +108,7 @@ colnames(cyano_samples) <- as.Date(colnames(cyano_samples), "%d.%m.%Y")
 
 microcystis <- cyano_df[grep("Microcystaceae", cyano_df$Family), ]
 colnames(microcystis)
-micro_samples <- microcystis %>% select(1:71)
+micro_samples <- microcystis %>% select(1:66)
 grep(".1$", colnames(micro_samples))
 # colnames(micro_samples)[c(2,4,7,9,11,13,
                           # 15,18,20,22,24,
@@ -121,8 +126,8 @@ colnames(micro_samples) <- as.Date(colnames(micro_samples), "%d.%m.%Y")
 
 
 
-dolichospermum <- cyano_df[grep("Dolichospermum", cyano_df$Species), ]
-doli_samples <- dolichospermum %>% select(1:71)
+dolichospermum <- cyano_df[grep("Dolichospermum", cyano_df$Genus), ]
+doli_samples <- dolichospermum %>% select(1:66)
 # colnames(doli_samples)[c(2,4,7,9,11,13,
                           # 15,18,20,22,24,
                           # 26,28,30,33,35,
