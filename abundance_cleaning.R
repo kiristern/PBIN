@@ -6,7 +6,7 @@ library(vegan)
 setwd("~/Documents/GitHub/PBIN/data")
 
 #upload ASV count table
-ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
+ASV_count <- t(vir_abun_removed)
 
 #transpose table
 asv <- t(ASV_count)
@@ -34,14 +34,33 @@ asv_tot[3] <- get_rel_abun(asv_tot[1])
 #sort relative abundance from largest to smallest
 asv_tot <- arrange(asv_tot, desc(rel_ab))
 top20 <- head(asv_tot, 20)
+top20
+#write.csv(top20, file="top20_filt_removed.csv")
 
-#write.csv(top20, file="top20.csv")
-
-top20 <- read.csv("top20.csv")
+top20 <- read.csv("top20_filt_removed.csv")
 
 #select asvs 1-21 excluding asv17
-asv_tax <- (asv)[,c(1:16, 18:21)]
-#asv_tax <- asv_tax[,-17]
+asv_tax <- as.data.frame(asv) %>% select(
+  "ASV_2",
+  "ASV_1",
+  "ASV_3",
+  "ASV_5",
+  "ASV_4",
+  "ASV_7",
+  "ASV_8",
+  "ASV_12",
+  "ASV_6",
+  "ASV_21",
+  "ASV_15",
+  "ASV_33",
+  "ASV_11",
+  "ASV_18",
+  "ASV_17",
+  "ASV_19",
+  "ASV_48",
+  "ASV_13",
+  "ASV_25"
+)
 nrow(asv_tax)
 ncol(asv_tax)
 #relative abundance matrix
@@ -58,10 +77,9 @@ name_tax$ID_brackets <- with(name_tax, paste0("(", ID, ")"))
   
 #merge ASV name with ID in new col
 (virus_ID <- paste(name_tax$taxa, name_tax$ID_brackets, sep=" "))
-virus_ID[2] <- "Unknown ASV (ASV_2)"
+virus_ID[1] <- "Unknown ASV (ASV_2)"
 virus_ID[3] <- "Unknown ASV (ASV_3)"
-virus_ID[14] <- "Unknown ASV (ASV_14)"
-virus_ID[16] <- "Unknown ASV (ASV_16)"
+
 
 #add col to name_tax df
 name_tax <- add_column(name_tax, virus_ID)
