@@ -25,7 +25,7 @@ asv_tot[,newcol] <- NA
 
 #get relative abundance function
 get_rel_abun <- function(x){
-  x / sum(asv_tot[1])
+  x / sum(x)
 }
 
 #apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
@@ -133,6 +133,28 @@ head(asv_rel_abun)
 asv_rel_abun_dup <- asv_rel_abun[rep(seq_len(nrow(asv_rel_abun)), each = 20), ]
 
 #create new row of repeated ASV_IDs 168 times (# of samples) - make sure order is from ASV_1 - end (not order of abundance)
+# ASV_ID <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5 (ASV_1)", 
+#                                 "Unknown ASV (ASV_2)", 
+#                                 "Unknown ASV (ASV_3)",
+#                                 "Uncultured cyanomyovirus clone SZCPS18 (ASV_4)",
+#                                 "Uncultured Myoviridae g20_82_56_1%_NEQ (ASV_5)", 
+#                                 "Uncultured cyanophage clone BwC24 (ASV_6)", 
+#                                 "Uncultured Myoviridae g20_94_44_1%_NEQ (ASV_7)", 
+#                                 "Uncultured cyanomyovirus clone 88268CPSCC8 (ASV_8)",
+#                                 "Uncultured cyanophage clone LAB_g20_b26_C12 (ASV_9)",
+#                                 "Uncultured cyanophage clone KRB1008M5 (ASV_10)",
+#                                 "Uncultured cyanophage clone LAB_g20_b28_D9 (ASV_11)",
+#                                 "Uncultured cyanomyovirus clone 45202CPSCC1 (ASV_12)",
+#                                 "Uncultured cyanophage clone KRA0808M1 (ASV_13)",
+#                                 "Unknown ASV (ASV_14)",
+#                                 "Cyanophage LLM-cg20-1 clone LLM-cg20-1 (ASV_15)",
+#                                 "Unknown ASV (ASV_16)",
+#                                 "Cyanophage S-RIM isolate S-RIM5 (ASV_18)",
+#                                 "Uncultured Myoviridae clone KUSW41 (ASV_19)",
+#                                 "Synechococcus phage S-LKM3 (ASV_20)",
+#                                 "Uncultured Myoviridae g20_61_47_1%_UW (ASV_21)"
+# ))
+
 ASV_ID <- data.frame(ASV_ID = c("Uncultured cyanophage clone KRB1008M5 (ASV_1)", 
                                 "ASV_2 (ASV_2)", 
                                 "ASV_3 (ASV_3)",
@@ -204,5 +226,33 @@ df <- df %>%
 
 
 
+
+
+
+
+#redo with filtered ASV (in at least 5% of samples)
+filt_ASV_count <- filt_vir_seq %>% otu_table()
+
+#transpose table
+asv_filt <- t(filt_ASV_count)
+#get total count of asv
+asv_tot_filt <- colSums(asv_filt)
+#transform to df
+asv_tot_filt <- as.data.frame(asv_tot_filt)
+#extract asv_id 
+asv_id_filt <- row.names(asv_tot_filt)
+#add asv_ids to df
+asv_tot_filt$ID=asv_id_filt
+#add new empty column
+newcol <- "rel_ab"
+asv_tot_filt[,newcol] <- NA
+# asv_tot <- mutate(asv_tot, sample=row.names(asv_tot))
+
+#apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
+asv_tot_filt[3] <- get_rel_abun(asv_tot_filt[1])
+
+#sort relative abundance from largest to smallest
+asv_tot_filt <- arrange(asv_tot_filt, desc(rel_ab))
+top20_filt <- head(asv_tot_filt, 20) #same as before, as predicted!! good. 
 
 
