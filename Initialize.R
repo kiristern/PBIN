@@ -19,16 +19,16 @@ setwd("~/Documents/GitHub/PBIN/data")
 #upload ASV count table and metadata
 ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
 #meta <- read.csv("metadata3.csv", row.names=1, header=T)
-meta <- read.csv("meta_cmd.csv", row.names = 1, header = T)
+meta_cyano <- read.csv("metadata_w_cyano.csv", row.names = 1, header = T)
 
 
 #meta$Years <- as.factor(meta$Years)
-meta$Years <- as.factor(meta$Years)
+meta_cyano$Years <- as.factor(meta_cyano$Years)
 
 
 #ASV count table to phyloseq table
 count_phy <- otu_table(ASV_count, taxa_are_rows=T)
-sample_info <- sample_data(meta)
+sample_info <- sample_data(meta_cyano)
 viral_physeq <- phyloseq(count_phy, sample_info)
 
 #upload viral tree
@@ -75,10 +75,10 @@ filt_vir <- as.data.frame(filt_virseq %>% otu_table())
 setwd("~/Documents/GitHub/PBIN")
 
 #transform asv density as a proportion of the sum of all densities
-vir_abund_helli <- decostand(t(filt_vir), method="hellinger")
+vir_abund_helli <-decostand(t(filt_vir), method="hellinger")
 
 #load metadata
-# enviro_var <- meta
+enviro_var <- meta_cyano
 # #standardize environmental data
 # enviro_var[,c(7:13)]<-decostand(enviro_var[,c(7:13)], method="standardize")
 # 
@@ -110,10 +110,10 @@ vir_abund_helli <- decostand(t(filt_vir), method="hellinger")
 # # write.csv(cyano_var_sum, "cyano_var_sum.csv")
 
 #### read in cyano with env var table ####
-env_cy <- meta
+env_cy <- read.csv("data/metadata_w_cyano.csv", header = T, row.names = 1)
 colnames(env_cy)
 #standardize environmental data
-env_cy[,c(1:3, 10:15)]<-decostand(env_cy[,c(1:3, 10:15)], method="standardize")
+env_cy[,c(7:13)]<-decostand(env_cy[,c(7:13)], method="standardize")
 
 #rename cols
 env_cy <- env_cy %>%
@@ -142,9 +142,7 @@ env_keep <- env_cy %>% select("Months",
                               "Dissolved_N",
                               "Cumul_precip",
                               "Avg_temp",
-                              "Dolicho.Abundance",
-                              "Micro.Abundance",
-                              "Cyano.Abundance")
+                              "cyano_count")
 
 
 summary(env_keep)
@@ -156,6 +154,38 @@ complete.cases(env_keep)
 complete_env_keep <- env_keep[complete.cases(env_keep), ]
 complete_env_keep %>% dplyr::glimpse() 
 summary(complete_env_keep)
+
+
+#### Remove viral asvs that are not present (due to removal of NA from env vars)
+vir_abundance <- t(filt_vir)
+
+#look at the species' distribution frequencies
+#viral_ab <- table(unlist(vir_abundance))
+#barplot(viral_ab, las=1, xlab = "Abundance class", ylab="Frequency")
+
+#see how many absences
+sum(vir_abundance==0)
+#look at the proportion of zeros in community data
+sum(vir_abundance==0)/(nrow(vir_abundance)*ncol(vir_abundance))
+
+#comparing removed env rows with cyano abundance samples
+abund_name <- row.names(vir_abundance)
+env_row_name <- row.names(complete_env_keep)
+
+#check which rows are not the same
+abund_name %in% env_row_name
+#which rows are the same
+#intersect(abund_name, env_row_name)
+
+#specific samples that are not the same
+(row_remove <- setdiff(abund_name, env_row_name))
+#count how many are different
+length(setdiff(abund_name, env_row_name))  
+
+#remove rows (samples) that aren't in env_var from abundance
+vir_abun_removed <- vir_abundance[!(row.names(vir_abundance) %in% row_remove), ]
+
+
 
 
 #### Remove viral asvs that are not present (due to removal of NA from env vars)
@@ -185,7 +215,9 @@ length(setdiff(abund_name, env_row_name))
 
 #remove rows (samples) that aren't in env_var from abundance
 vir_abun_removed <- vir_abund_helli[!(row.names(vir_abund_helli) %in% row_remove), ]
-nrow(vir_abun_removed)
+
+
+
 
 
 
