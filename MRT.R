@@ -1,16 +1,24 @@
 #https://bookdown.org/forestgeoguest/mpart/mvpart.html
 
 #run preprocessing from Initialize.R script
-vir_abun_removed
-complete_env_keep
-colnames(complete_env_keep)
+head(vir_abun_removed)
+head(complete_env_keep)
 
-#mvpart_formula <- vir_abun_removed ~ Months + Years + Site + Period + bloom2 + Tot_P + Tot_N + Dissolved_P + 
-#                             Dissolved_N + Cumul_precip + Avg_temp + cyano_count
-mvpart_formula <- vir_abun_removed ~ Months + Years + Period +  Cumul_precip + Avg_temp + bloom2 + Site + cyano_count
 
-mrt <- mvpart(as.matrix(vir_abun_removed) ~., complete_env_keep,  legend=FALSE, margin=0.01, cp=0, xv="pick",
-              xval=nrow(vir_abun_removed), xvmult=100, which=4)
+formula <- vir_abun_removed ~ Months + Years + Site + Period + bloom2 + Tot_P + Tot_N + Dissolved_P + 
+                             Dissolved_N + Cumul_precip + Avg_temp + Cyano.Abundance + Micro.Abundance + Dolicho.Abundance
+#formula_signif <- vir_abun_removed ~ Months + Years + Period +  Cumul_precip + Avg_temp + bloom2 + Site + cyano_count
+
+mrt <- mvpart(
+  form=formula,
+  data=complete_env_keep,  
+  legend=FALSE, 
+  margin=0.01, 
+  cp=0, 
+  xv="pick",
+  xval=nrow(vir_abun_removed), 
+  xvmult=100, 
+  which=4)
 #The graph shows the relative error RE (in green) and the cross-validated relative error CVRE (in blue) of trees of increasing size. 
 #The red dot indicates the solution with the smallest CVRE, and the orange dot shows the smallest tree within one standard error of CVRE. 
 #It has been suggested that instead of choosing the solution minimizing CVRE, it would be more parsimonious to opt for the smallest tree 
@@ -24,39 +32,16 @@ mrt <- mvpart(as.matrix(vir_abun_removed) ~., complete_env_keep,  legend=FALSE, 
 #Each leaf is characterized by a small barplot showing the abundances of the species, its number of 
 #sites and its relative error.
 
-#compare trees
-# Using the CVRE criterion (10-group solution)
-mrt.cvre <- mvpart(as.matrix(vir_abun_removed)~., complete_env_keep, 
-                         legend=FALSE, margin=0.01, cp=0,xv="pick", 
-                         xval=nrow(vir_abun_removed), xvmult=100,which=4)
-
-# Choosing ourself the best number of partitions
-mrt.4 <- mvpart(as.matrix(vir_abun_removed)~., complete_env_keep, 
-                      legend=FALSE, margin=0.01, cp=0, xv="pick", 
-                      xval=nrow(vir_abun_removed), xvmult=100,which=4)
-
-
-
-
-
-
-
-# tree <- mvpart(vir_abun_removed ~ Dissolved_N + Cumul_precip + Tot_N + Tot_P, complete_env_keep,
-#                legend=T, cp=0, xv="pick",
-#                xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
-# plot(tree)
-# text(tree)
-
 
 tree_month <- mvpart(as.matrix(vir_abun_removed)~ Months, complete_env_keep,
                legend=T, margin=0.01, cp=0, xv="pick",
                xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
-(month_R2 <- RsquareAdj(tree_month)$adj.r.squared)
-
 tree_year <- mvpart(as.matrix(vir_abun_removed)~ Years, complete_env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
                     xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
+
+rpart.pca(tree_year)
 
 tree_site <- mvpart(as.matrix(vir_abun_removed)~ Site, complete_env_keep,
                       legend=T, margin=0.01, cp=0, xv="pick",
@@ -81,6 +66,8 @@ tree_totN <- mvpart(as.matrix(vir_abun_removed)~ Tot_N, complete_env_keep,
 tree_DisP <- mvpart(as.matrix(vir_abun_removed)~ Dissolved_P, complete_env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
                     xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
+(DisP_R2 <- RsquareAdj(tree_DisP)$adj.r.squared)
+rpart.pca(tree_DisP)
 
 tree_DisN <- mvpart(as.matrix(vir_abun_removed)~ Dissolved_N, complete_env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
@@ -94,7 +81,15 @@ tree_temp <- mvpart(as.matrix(vir_abun_removed)~ Avg_temp, complete_env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
                     xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
-tree_cyano <- mvpart(as.matrix(vir_abun_removed)~ cyano_count, complete_env_keep,
+tree_cyano <- mvpart(as.matrix(vir_abun_removed)~ Cyano.Abundance, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
+
+tree_doli <- mvpart(as.matrix(vir_abun_removed)~ Dolicho.Abundance, complete_env_keep,
+                    legend=T, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
+
+tree_micro <- mvpart(as.matrix(vir_abun_removed)~ Micro.Abundance, complete_env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
                     xval=nrow(vir_abun_removed), xvmult=100, which=4, big.pts=T, bars=F)
 
