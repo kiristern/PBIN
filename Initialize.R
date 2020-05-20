@@ -18,8 +18,8 @@ setwd("~/Documents/GitHub/PBIN/data")
 
 #upload ASV count table and metadata
 ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
-#meta <- read.csv("metadata3.csv", row.names=1, header=T)
-meta_cyano <- read.csv("meta_cmd.csv", row.names = 1, header = T)
+meta_cyano <- read.csv("metadata_w_cmd.csv", row.names = 1, header = T)
+
 
 
 #meta$Years <- as.factor(meta$Years)
@@ -52,9 +52,6 @@ filt_vir <- as.data.frame(filt_virseq %>% otu_table())
 
 
 ######## prep data for MRT and RDA ########
-
-setwd("~/Documents/GitHub/PBIN")
-
 #transform asv density as a proportion of the sum of all densities
 vir_abund_helli <-decostand(t(filt_vir), method="hellinger")
 
@@ -96,7 +93,8 @@ env_keep <- env_cy %>% select("Months",
                               "Dolicho.Abundance")
 colnames(env_keep)
 #standardize environmental data
-env_keep[,c(6:14)]<-decostand(env_keep[,c(6:14)], method="standardize")
+env_keep[,c(6:11)]<-decostand(env_keep[,c(6:11)], method="standardize")
+#env_keep[,c(6:14)]<-decostand(env_keep[,c(6:14)], method="standardize")
 
 summary(env_keep)
 # colnames(env_keep)
