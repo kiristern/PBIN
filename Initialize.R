@@ -13,6 +13,8 @@ library(tibble)
 library(tidyverse)
 library(stats)
 library(psych)
+library(reshape2)
+library(genefilter)
 
 setwd("~/Documents/GitHub/PBIN/data")
 
@@ -46,6 +48,17 @@ print(viral_physeq)
 #remove taxa not seen more than 3 times in at least 5% of the samples. This protects against ASV with small mean & trivially large coef of var
 filt_virseq <- filter_taxa(viral_physeq, function(x) sum(x > 3) > (0.05*length(x)), TRUE)
 filt_vir <- as.data.frame(filt_virseq %>% otu_table())
+
+
+#filtering based on the across-sample mean; hence, if an OTU is abundant in some samples, but very rare in the rest of the samples, then it will be categorized as rare
+mean_rare <- filter_taxa(viral_physeq, function(x) mean(x) < 300, TRUE)
+
+##filter based on per-sample (not across-sample) abundance 
+#define criterion for filtering; kOverA evaluates to TRUE if at least k (1) of the arguments are >A (34)
+flist_a <- filterfun(kOverA(1, 300))
+a <- filter_taxa(viral_physeq, flist_a)
+rare_ps <- prune_taxa(!a, viral_physeq)
+raredf <- as.data.frame(rare_ps %>% otu_table())
 
 
 
