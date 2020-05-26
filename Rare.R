@@ -52,11 +52,11 @@ ASV1732 <- t(as.data.frame(virps["ASV_1732",]))
 ASV2813 <- t(as.data.frame(virps["ASV_2813",]))
 ASV841 <- t(as.data.frame(virps["ASV_841",]))
 
-plot(ASV1732, pch="o", col="blue", lty=1, type="o")
+plot(ASV1732, pch="o", col="blue", lty=1, type="o", ylim=c(0,120))
 #overlay on initial plot
 points(ASV2813, col="red", pch="*")
 lines(ASV2813, col="red", lty=2)
-
-
+points(ASV841, col="green", pch="+")
+lines(ASV841, col="green", lty=3)
 
 
