@@ -15,6 +15,7 @@ library(stats)
 library(psych)
 library(reshape2)
 library(genefilter)
+library(TSA)
 
 setwd("~/Documents/GitHub/PBIN/data")
 
@@ -48,7 +49,7 @@ print(viral_physeq)
 #remove taxa not seen more than 3 times in at least 5% of the samples. This protects against ASV with small mean & trivially large coef of var
 filt_virseq <- filter_taxa(viral_physeq, function(x) sum(x > 3) > (0.05*length(x)), TRUE)
 filt_vir <- as.data.frame(filt_virseq %>% otu_table())
-
+write.table(filt_vir, "filt_vir.txt", row.names = TRUE, quote=FALSE)
 
 #filtering based on the across-sample mean; hence, if an OTU is abundant in some samples, but very rare in the rest of the samples, then it will be categorized as rare
 mean_rare <- filter_taxa(viral_physeq, function(x) mean(x) < 300, TRUE)
@@ -61,7 +62,12 @@ rare_ps <- prune_taxa(!a, viral_physeq)
 raredf <- as.data.frame(rare_ps %>% otu_table())
 
 
-
+flist    <- filterfun(kOverA(1, 300))
+ent.logi <- filter_taxa(viral_physeq, flist)
+ent.trim <- filter_taxa(viral_physeq, flist, TRUE)
+identical(ent.trim, prune_taxa(ent.logi, viral_physeq)) 
+identical(sum(ent.logi), ntaxa(ent.trim))
+filter_taxa(viral_physeq, flist, TRUE)
 
 
 ######## prep data for MRT and RDA ########
