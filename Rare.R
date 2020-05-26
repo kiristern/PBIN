@@ -17,39 +17,45 @@
 
 #####
 #What are the input files?
-#The input file for this script is: An OTU (taxa) table, with samples in columns and taxa in rows.  The first row should include column names.  The first column should have taxa (OTU) IDs.  The first cell (row 1, col 1) should be empty.  It is optional that the last column contains taxonomic assignments of each OTU.
-
-#The L4 English Channel dataset is provided as an example of an input file.  Inspect the formatting of this file carefully and use it as a guide to prepare your own dataset for analysis.
-
+#The input file for this script is: An OTU (taxa) table, with samples in columns and taxa in rows.  
+#The first row should include column names.  The first column should have taxa (OTU) IDs.  
+#The first cell (row 1, col 1) should be empty.  
+#It is optional that the last column contains taxonomic assignments of each OTU.
 
 #####
 #How do I use the script? 
 #Step 1.
-#If they are not installed already, install the following required R packages: vegan, TSA.  Then, load the libraries to the R workspace by copying and pasting the commands below into the R console:
+#load required R packages: vegan, TSA. 
 library(vegan)
 
 #Step 2.
 #Place the input file and script in the same working directory to run this script.  Change the working directory in R to match where the files have been placed.
 
 #Step 3.
-#Load the necessary functions into your R workspace, contained in a separate file, "CRT_functions.R" 
+#Load the necessary functions into your R workspace, contained in a separate file, "rare_fncs.R" 
 source("../rare_fncs.R")
 
 #Step 4.  
 #Change the options below to match your dataset.  The options are:  
 #otu_fp - type the the full name of your dataset file, including the extension
 #abund_thresh -  Change the maximum abundance threshold, if desired. Defaults to 0.005
-#abund_thresh_ALL - Use TRUE if you want to use the full dataset (ALL OTUs) to calculate relative abundances.  Use FALSE if you want to use the non-singleton (filtered) dataset to calculate relative abundances.  Default is FALSE.
+#abund_thresh_ALL - Use TRUE if you want to use the full dataset (ALL OTUs) to calculate relative abundances. Use FALSE if you want to use the non-singleton (filtered) dataset to calculate relative abundances.  Default is FALSE.
 #b_thresh - Change the coefficient of bimodality threshold, if desired.  Defaults to 0.90
 #rdp_lastcol - Use TRUE if the last column of the dataset contains the taxonomic assignments of OTUs, use FALSE if not
 #Then,to run the script, copy and paste the command into the R console:
 
-SimpleRareToPrev.f(otu_fp="filt_vir.txt",abund_thresh=0.005, abund_thresh_ALL=FALSE,b_thresh=0.90, rdp_lastcol=TRUE)
+SimpleRareToPrev.f(otu_fp="virps.txt",abund_thresh=0.005, abund_thresh_ALL=FALSE,b_thresh=0.90, rdp_lastcol=FALSE)
 
 
+#plot ASV over time
+ASV1732 <- t(as.data.frame(virps["ASV_1732",]))
+ASV2813 <- t(as.data.frame(virps["ASV_2813",]))
+ASV841 <- t(as.data.frame(virps["ASV_841",]))
 
-
-
+plot(ASV1732, pch="o", col="blue", lty=1, type="o")
+#overlay on initial plot
+points(ASV2813, col="red", pch="*")
+lines(ASV2813, col="red", lty=2)
 
 
 
