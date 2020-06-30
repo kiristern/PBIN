@@ -99,29 +99,32 @@ row.names(sum_doli) %in% row.names(viral4doli_keep)
 rowrem_micro <- setdiff(row.names(sum_micro), row.names(viral4micro_keep))
 rowrem_doli <- setdiff(row.names(sum_doli), row.names(viral4doli_keep))
 #remove rows (samples) that aren't in bacteria from viral
-sumcyano_keep <- as.data.frame(sum_cyano[!(row.names(sum_cyano) %in% rowrem_cyano), ])
-summicro_keep <- as.data.frame(sum_micro[!(row.names(sum_micro) %in% rowrem_micro), ])
-sumdoli_keep <- as.data.frame(sum_doli[!(row.names(sum_doli) %in% rowrem_doli), ])
+# sumcyano_keep <- as.data.frame(sum_cyano[!(row.names(sum_cyano) %in% rowrem_cyano), ])
+# summicro_keep <- as.data.frame(sum_micro[!(row.names(sum_micro) %in% rowrem_micro), ])
+# sumdoli_keep <- as.data.frame(sum_doli[!(row.names(sum_doli) %in% rowrem_doli), ])
+sumcyano_keep <- sum_cyano[!(row.names(sum_cyano) %in% rowrem_cyano), ]
+summicro_keep <- sum_micro[!(row.names(sum_micro) %in% rowrem_micro), ]
+sumdoli_keep <- sum_doli[!(row.names(sum_doli) %in% rowrem_doli), ]
 
-#rename col names
-names(sumcyano_keep)[names(sumcyano_keep)=="sum_cyano[!(row.names(sum_cyano) %in% rowrem_cyano), ]"] <- "sum"
-names(summicro_keep)[names(summicro_keep)=="sum_micro[!(row.names(sum_micro) %in% rowrem_micro), ]"] <- "sum"
-names(sumdoli_keep)[names(sumdoli_keep)=="sum_doli[!(row.names(sum_doli) %in% rowrem_doli), ]"] <- "sum"
+# #rename col names
+# names(sumcyano_keep)[names(sumcyano_keep)=="sum_cyano[!(row.names(sum_cyano) %in% rowrem_cyano), ]"] <- "sum"
+# names(summicro_keep)[names(summicro_keep)=="sum_micro[!(row.names(sum_micro) %in% rowrem_micro), ]"] <- "sum"
+# names(sumdoli_keep)[names(sumdoli_keep)=="sum_doli[!(row.names(sum_doli) %in% rowrem_doli), ]"] <- "sum"
+# 
+# dim(sumcyano_keep)
+# dim(viral4cyano_keep)
 
-dim(sumcyano_keep)
-dim(viral4cyano_keep)
-
-row.names(viral4cyano_keep) %in% row.names(sumcyano_keep)
+# row.names(viral4cyano_keep) %in% row.names(sumcyano_keep)
 
 #reassign rownames
 # samplename <- row.names(sum_cyano)
 # samplekeep <- samplename[c(keep_cyano)]
 # rownames(sumcyano_keep) <- samplekeep
 
-dim(viral4cyano_keep)
-dim(sumcyano_keep)
-row.names(sumcyano_keep) %in% row.names(viral4cyano_keep)
-row.names(viral4cyano_keep) %in% row.names(sumcyano_keep)
+# dim(viral4cyano_keep)
+# dim(sumcyano_keep)
+# row.names(sumcyano_keep) %in% row.names(viral4cyano_keep)
+# row.names(viral4cyano_keep) %in% row.names(sumcyano_keep)
 
 
 #### script returns ####
@@ -129,23 +132,48 @@ sumcyano_keep
 summicro_keep
 sumdoli_keep
 
-viral_cyano_keep
-viral_micro_keep
-viral_doli_keep
+viral4cyano_keep
+viral4micro_keep
+viral4doli_keep
 
 
 
 #### Random Forest ####
 
 #divide into training/test sets
-samp_size <- floor(0.70 * nrow(viral_cyano_keep))
+samp_size <- floor(0.70 * nrow(viral4cyano_keep))
 set.seed(1234)
-train_idx <- sample(seq_len(nrow(viral_cyano_keep)), size = samp_size)
+train_idx <- sample(seq_len(nrow(viral4cyano_keep)), size = samp_size)
 # train <- viral_helli[train_idx, ]
 # test <- viral_helli[-train_idx, ]
 
-(cyano_rf <- randomForest(sumcyano_keep$`sum_cyano[keep_sumcyano, ]` ~ ., 
-                          data = viral_cyano_keep, 
+(cyano_rf <- randomForest(sumcyano_keep ~ ., 
+                          data = viral4cyano_keep, 
+                          subset = train_idx))
+
+#Plotting the Error vs Number of Trees Graph
+plot(cyano_rf)
+
+#look at the importance that the classifier has assigned to each variable
+varImpPlot(cyano_rf)
+
+
+### micro RF  ####
+(micro_rf <- randomForest(summicro_keep$sum ~ ., #remove $sum if didn't as.df
+                          data = viral4micro_keep, 
+                          subset = train_idx))
+
+#Plotting the Error vs Number of Trees Graph
+plot(micro_rf)
+
+#look at the importance that the classifier has assigned to each variable
+varImpPlot(micro_rf)
+
+
+
+### doli RF  ####
+(doli_rf <- randomForest(sumdoli_keep$sum ~ ., #remove $sum if didn't as.df
+                          data = viral4doli_keep, 
                           subset = train_idx))
 
 #Plotting the Error vs Number of Trees Graph
@@ -153,15 +181,3 @@ plot(doli_rf)
 
 #look at the importance that the classifier has assigned to each variable
 varImpPlot(doli_rf)
-
-
-#### Microcystis ####
-
-#merge micro with viral
-mic <- merge(bacterial[2], viral, by="row.names", all=T)
-#transform col1 into row.names
-mic2 <- mic[,-1]
-rownames(mic2)<-mic[,1]
-#transform data
-mic_trans <-decostand(mic2, method="hellinger", na.rm = T)
-
