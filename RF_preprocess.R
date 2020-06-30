@@ -38,9 +38,9 @@ rownames(doli) <- dolichospermum[,1]
 doli <- t(doli)
 
 #Get sums
-sum_cyano <- as.data.frame(rowSums(cyano))
-sum_micro <- as.data.frame(rowSums(micro))
-sum_doli <- as.data.frame(rowSums(doli))
+(sum_cyano <- as.data.frame(rowSums(cyano)))
+(sum_micro <- as.data.frame(rowSums(micro)))
+(sum_doli <- as.data.frame(rowSums(doli)))
 
 #remove X in front of rownames
 row.names(sum_cyano) <- substring(row.names(sum_cyano), 2)
@@ -51,49 +51,102 @@ row.names(sum_doli) <- substring(row.names(sum_doli), 2)
 row.names(viral) <- sub("*._*._*._*._*._*._*._","", row.names(viral))
 #change all _ to .
 row.names(viral) <- gsub("_", ".", row.names(viral))
+#transform data
+dim(viral)
+viral_helli <-decostand(viral, method="hellinger", na.rm = T)
+viral_helli <- na.omit(viral_helli)
+
+#assign new name to the duplicated sample/date at position 100
+rownames(viral_helli)[99]
+rownames(viral_helli)[100]
+rownames(viral_helli)[100] <- "15.05.2011.2"
+
+#check if this exists in sum_cyano df
+sum_cyano["15.05.2011.2", ] #it does not
+#remove
+viral_helli_rem <- viral_helli[-100,]
+row.names(viral_helli_rem)
+
+dim(viral_helli_rem)
+dim(sum_cyano)
 
 #check rows from bacterial that are in viral
-row.names(viral) %in% row.names(sum_cyano)
-row.names(viral) %in% row.names(sum_micro)
-row.names(viral) %in% row.names(sum_doli)
+row.names(viral_helli_rem) %in% row.names(sum_cyano)
+row.names(viral_helli_rem) %in% row.names(sum_micro)
+row.names(viral_helli_rem) %in% row.names(sum_doli)
 
-#specific samples that are not the same
-vir_rowrem_cyano <- setdiff(row.names(viral), row.names(sum_cyano))
-vir_rowrem_micro <- setdiff(row.names(viral), row.names(sum_micro))
-vir_rowrem_doli <- setdiff(row.names(viral), row.names(sum_doli))
+#specific samples that are the same
+(keep_cyano <- which(row.names(viral_helli_rem) %in% row.names(sum_cyano)))
+keep_micro <- which(row.names(viral_helli_rem) %in% row.names(sum_micro))
+keep_doli <- which(row.names(viral_helli_rem) %in% row.names(sum_doli))
+#viral samples to keep
+viral4cyano_keep <- viral_helli_rem[keep_cyano, ]
+viral4micro_keep <- viral_helli_rem[keep_micro, ]
+viral4doli_keep <- viral_helli_rem[keep_doli, ]
 
+dim(viral4cyano_keep)
+dim(sum_cyano)
+row.names(viral4cyano_keep)
+row.names(sum_cyano)
+
+#rows that are in sum_bacterial but not in viral_keep
+row.names(sum_cyano) %in% row.names(viral4cyano_keep)
+row.names(sum_micro) %in% row.names(viral4micro_keep)
+row.names(sum_doli) %in% row.names(viral4doli_keep)
+
+#rows to remove BETTER TP KEEP ROWS RATHER THAN DROPPING TO AVOID ACCIDENTALLY RE-RUNNING CODE TWICE
+(rowrem_cyano <- setdiff(row.names(sum_cyano), row.names(viral4cyano_keep)))
+rowrem_micro <- setdiff(row.names(sum_micro), row.names(viral4micro_keep))
+rowrem_doli <- setdiff(row.names(sum_doli), row.names(viral4doli_keep))
 #remove rows (samples) that aren't in bacteria from viral
-viral_cyano <- viral[!(row.names(viral) %in% vir_rowrem_cyano), ]
-viral_micro <- viral[!(row.names(viral) %in% vir_rowrem_micro), ]
-viral_doli <- viral[!(row.names(viral) %in% vir_rowrem_doli), ]
+sumcyano_keep <- as.data.frame(sum_cyano[!(row.names(sum_cyano) %in% rowrem_cyano), ])
+summicro_keep <- as.data.frame(sum_micro[!(row.names(sum_micro) %in% rowrem_micro), ])
+sumdoli_keep <- as.data.frame(sum_doli[!(row.names(sum_doli) %in% rowrem_doli), ])
 
-row.names(viral_cyano)
-row.names(viral)
+#rename col names
+names(sumcyano_keep)[names(sumcyano_keep)=="sum_cyano[!(row.names(sum_cyano) %in% rowrem_cyano), ]"] <- "sum"
+names(summicro_keep)[names(summicro_keep)=="sum_micro[!(row.names(sum_micro) %in% rowrem_micro), ]"] <- "sum"
+names(sumdoli_keep)[names(sumdoli_keep)=="sum_doli[!(row.names(sum_doli) %in% rowrem_doli), ]"] <- "sum"
+
+dim(sumcyano_keep)
+dim(viral4cyano_keep)
+
+row.names(viral4cyano_keep) %in% row.names(sumcyano_keep)
+
+#reassign rownames
+# samplename <- row.names(sum_cyano)
+# samplekeep <- samplename[c(keep_cyano)]
+# rownames(sumcyano_keep) <- samplekeep
+
+dim(viral4cyano_keep)
+dim(sumcyano_keep)
+row.names(sumcyano_keep) %in% row.names(viral4cyano_keep)
+row.names(viral4cyano_keep) %in% row.names(sumcyano_keep)
+
+
+#### script returns ####
+sumcyano_keep
+summicro_keep
+sumdoli_keep
+
+viral_cyano_keep
+viral_micro_keep
+viral_doli_keep
 
 
 
-#### Dolichospermum ####
-
-#merge dolico with viral
-doli <- merge(bacterial[1], viral, by="row.names", all=T)
-#transform col1 into row.names
-doli2 <- doli[,-1]
-rownames(doli2)<-doli[,1]
-doli_rem_samp <- doli[,-1]
-#transform data
-dim(doli)
-doli_trans <-decostand(doli_rem_samp, method="hellinger", na.rm = T)
-doli_trans_nona <- na.omit(doli_trans)
-dim(doli_trans_nona)
+#### Random Forest ####
 
 #divide into training/test sets
-samp_size <- floor(0.70 * nrow(doli_trans_nona))
+samp_size <- floor(0.70 * nrow(viral_cyano_keep))
 set.seed(1234)
-train_idx <- sample(seq_len(nrow(doli_trans_nona)), size = samp_size)
-# train_doli <- doli_trans_nona[train_idx, ]
-# test_doli <- doli_trans_nona[-train_idx, ]
+train_idx <- sample(seq_len(nrow(viral_cyano_keep)), size = samp_size)
+# train <- viral_helli[train_idx, ]
+# test <- viral_helli[-train_idx, ]
 
-(doli_rf <- randomForest(Dolicho.Abundance ~ ., data = doli_trans_nona, subset = train_idx))
+(cyano_rf <- randomForest(sumcyano_keep$`sum_cyano[keep_sumcyano, ]` ~ ., 
+                          data = viral_cyano_keep, 
+                          subset = train_idx))
 
 #Plotting the Error vs Number of Trees Graph
 plot(doli_rf)
