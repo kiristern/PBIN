@@ -139,13 +139,31 @@ mat_corr_adj <- with(corr_tab_adj, {
   out[cbind(row, col)] <- corr
   out
 })
-
 #set NaN to zero
 mat_corr_adj[is.na(mat_corr_adj)] <- 0
 #remove rows that are completely empty
 mat_corr_no0 = mat_corr_adj[apply(mat_corr_adj[,-1], 1, function(x) !all(x==0)),]
 dim(mat_corr_no0)
 dim(mat_corr_adj)
+
+
+#repeat for pval
+mat_pval_adj <- with(corr_tab_adj, {
+  out <- matrix(nrow=nlevels(row), ncol=nlevels(col),
+                dimnames=list(levels(row), levels(col)))
+  out[cbind(row, col)] <- pval
+  out
+})
+#set NaN to zero
+mat_pval_adj[is.na(mat_pval_adj)] <- 0
+#remove rows that are completely empty
+mat_pval_no0 = mat_pval_adj[apply(mat_pval_adj[,-1], 1, function(x) !all(x==0)),]
+dim(mat_pval_no0)
+dim(mat_pval_adj)
+
+
+
+
 
 # #compute the matrix of p-value
 # # mat : is a matrix of data
