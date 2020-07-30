@@ -162,9 +162,6 @@ dim(mat_pval_no0)
 dim(mat_pval_adj)
 
 
-
-
-
 # #compute the matrix of p-value
 # # mat : is a matrix of data
 # # ... : further arguments to pass to the native R cor.test function
@@ -190,12 +187,12 @@ head(vb_pval_rem)
 
 #visualize
 colourpalette <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
-corrplot(vb_coeff_rem,  method="color", col=colourpalette(200),  
+corrplot(mat_corr_no0,  method="color", col=colourpalette(200),  
          type="full", 
          # order="hclust", #reorder: hierarchical clustering according to the correlation coeff
         #addCoef.col = "black", # Add coefficient of correlation
          tl.col="black", tl.srt=45, #Text label color and rotation
-         p.mat = vb_pval_rem,     #add significance level to the correlogram
+         p.mat = mat_pval_no0,     #add significance level to the correlogram
          sig.level = 0.05, #correlations with p-value > 0.05 are considered as insignificant.
          insig = "blank", #leave blank on no significant coeff
          diag=FALSE      # hide correlation coefficient on the principal diagonal
