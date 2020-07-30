@@ -4,21 +4,35 @@ library(ggpubr)
 ## BETWEEN 2 PTS ##
 
 #correlation anylysis: The Spearman correlation method computes the correlation between the rank of x and the rank of y variables.
-bacteria <- t(cyano_samples) #loaded from cyano.R hellinger transformed
-viral <- vir_abun_removed #loaded from Initialize.R hellinger transformed
+bacteria <- cyano_samples #loaded from cyano.R hellinger transformed
+dim(bacteria)
+#remove rows (ASVs) that have no data (row all zero)
+bact_no0 <- bacteria[apply(bacteria[,-1], 1, function(x) !all(x==0)),]
+dim(bact_no0)
+
+viral <- t(vir_abun_removed) #loaded from Initialize.R hellinger transformed
+dim(viral)
+#remove rows (ASVs) that have no data (row all zero)
+vir_no0 <- viral[apply(viral[,-1], 1, function(x) !all(x==0)),]
+dim(vir_no0)
+
+bact_no0 <- t(bact_no0)
+vir_no0 <- t(vir_no0)
 
 #keep date only (ie. remove everything before first period)
 #change _ to .
-row.names(viral) <- gsub("_", ".", row.names(viral))
+row.names(vir_no0) <- gsub("_", ".", row.names(vir_no0))
 #remove everything before 1st period (just to keep date)
-row.names(viral) <- gsub("^.*?\\.","", row.names(viral))
+row.names(vir_no0) <- gsub("^.*?\\.","", row.names(vir_no0))
 #add cyano for all cyano ASVs
-colnames(viral) <- lapply(colnames(viral), function(x) paste("cyano", x, sep = "_"))
+colnames(vir_no0) <- lapply(colnames(vir_no0), function(x) paste("cyano", x, sep = "_"))
 
+rownames(bact_no0) %in% rownames(vir_no0)
+rownames(vir_no0) %in% rownames(bact_no0)
 
 #merge bacteria and viral
-bv <- merge(bacteria, viral)
-
+bv <- merge(bact_no0, vir_no0, by="row.names")
+bv <- bv[,-1]
 
 #visualize data using scatter plots
 ggscatter(vb_helli, x = "ASV_605", y = "micro_ASV_143",
@@ -50,14 +64,14 @@ spear_cor <-cor.test(vb_helli$ASV_605, vb_helli$micro_ASV_143,  method = "spearm
 ## WHOLE MATRIX ##
 
 #compute correlation
-vb_cor = cor(vb_helli, method = c("spearman"), use = "complete.obs") #If data contain missing values, use = "complete.obs" to handle missing values by case-wise deletion.
+vb_cor = cor(bv, method = c("spearman"), use = "complete.obs") #If data contain missing values, use = "complete.obs" to handle missing values by case-wise deletion.
 head(vb_cor)
 round(vb_cor, 2)
 
 #get significance levels (p-values)
 library(Hmisc)
 
-vb_rcorr = rcorr(as.matrix(vb_helli), type=c("spearman"))
+vb_rcorr = rcorr(as.matrix(bv), type=c("spearman"))
 #The output of the function rcorr() is a list containing the following elements : 
 # r : the correlation matrix
 # n : the matrix of the number of observations used in analyzing each pair of variables
@@ -66,8 +80,10 @@ vb_rcorr = rcorr(as.matrix(vb_helli), type=c("spearman"))
 # extract correlation coefficient
 vb_coeff = vb_rcorr$r
 
+dim(vb_coeff)
+colnames(vb_coeff)
 #keep only bacteria-virus correlation (no virus-virus or bact-bact)
-vb_coeff_rem <- vb_coeff[1:38,39:883]
+vb_coeff_rem <- vb_coeff[343:901,1:342]
 
 #set NaN to zero
 vb_coeff_rem[is.nan(vb_coeff_rem)] <- 0
@@ -77,32 +93,39 @@ head(vb_coeff_rem)
 vb_pval = vb_rcorr$P
 
 #keep only bacteria-virus correlation (no virus-virus or bact-bact)
-vb_pval_rem <- vb_pval[1:38,39:883]
+vb_pval_rem <- vb_pval[343:901,1:342]
 
 #adjust for multiple comparisons
-pval_adj = p.adjust(vb_pval, method=c("fdr"))
+pval_adj = p.adjust(vb_pval_rem, method=c("fdr"))
 
-head(vb_pval)
+head(vb_pval_rem)
 
 
 # ++++++++++++++++++++++++++++
 # flattenCorrMatrix
 # ++++++++++++++++++++++++++++
-# cormat : matrix of the correlation coefficients
-# pmat : matrix of the correlation p-values
-flattenCorrMatrix <- function(cormat, pmat) {
-  ut <- upper.tri(cormat)
-  data.frame(
-    row = rownames(cormat)[row(cormat)[ut]],
-    column = rownames(cormat)[col(cormat)[ut]],
-    cor  = (cormat)[ut],
-    p = pmat[ut]
-  )
-}
+# # cormat : matrix of the correlation coefficients
+# # pmat : matrix of the correlation p-values
+# flattenCorrMatrix <- function(cormat, pmat) {
+#   ut <- upper.tri(cormat)
+#   data.frame(
+#     row = rownames(cormat)[row(cormat)[ut]],
+#     column = rownames(cormat)[col(cormat)[ut]],
+#     cor  = (cormat)[ut],
+#     p = pmat[ut]
+#   )
+# }
 
-corr_table = flattenCorrMatrix(vb_coeff_rem, vb_pval_rem)
+# corr_table = flattenCorrMatrix(vb_coeff_rem, vb_pval_rem)
+# head(corr_table)
+
+#flatten correlation Matrix to df
+corr_table = data.frame(row=rownames(vb_coeff_rem)[row(vb_coeff_rem)], col=colnames(vb_coeff_rem)[col(vb_coeff_rem)], corr=c(vb_coeff_rem))
+#same for p-value
+pval_tab = data.frame(row=rownames(vb_pval_rem)[row(vb_pval_rem)], col=colnames(vb_pval_rem)[col(vb_pval_rem)], pval=c(vb_pval_rem))
+#add pval to correlation df
+corr_table$pval <- pval_tab$pval
 head(corr_table)
-
 
 
 # #compute the matrix of p-value
@@ -126,18 +149,18 @@ head(corr_table)
 # p.mat <- cor.mtest(vb_helli)
 # 
 # head(p.mat)
-head(vb_pval)
+head(vb_pval_rem)
 
 #visualize
 colourpalette <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
 corrplot(vb_coeff_rem,  method="color", col=colourpalette(200),  
          type="full", 
-         order="hclust", #reorder: hierarchical clustering according to the correlation coeff
+         # order="hclust", #reorder: hierarchical clustering according to the correlation coeff
         #addCoef.col = "black", # Add coefficient of correlation
          tl.col="black", tl.srt=45, #Text label color and rotation
-         # p.mat = vb_pval_rem,     #add significance level to the correlogram
-         # sig.level = 0.05, #correlations with p-value > 0.05 are considered as insignificant. 
-         # insig = "blank", #leave blank on no significant coeff
-         # diag=FALSE      # hide correlation coefficient on the principal diagonal
+         p.mat = vb_pval_rem,     #add significance level to the correlogram
+         sig.level = 0.05, #correlations with p-value > 0.05 are considered as insignificant.
+         insig = "blank", #leave blank on no significant coeff
+         diag=FALSE      # hide correlation coefficient on the principal diagonal
 
 )
