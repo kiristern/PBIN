@@ -127,6 +127,11 @@ pval_tab = data.frame(row=rownames(vb_pval_rem)[row(vb_pval_rem)], col=colnames(
 corr_table$pval <- pval_tab$pval
 head(corr_table)
 
+#remove correlations between -0.6-0.6 & p-val >0.5
+library(data.table)
+corr_tab_adj = as.data.frame(setDT(corr_table)[!(corr %between% c(-0.6, 0.6) | pval > c(0.05))])
+head(corr_tab_adj)
+
 
 # #compute the matrix of p-value
 # # mat : is a matrix of data
