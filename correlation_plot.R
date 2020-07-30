@@ -132,6 +132,20 @@ library(data.table)
 corr_tab_adj = as.data.frame(setDT(corr_table)[!(corr %between% c(-0.6, 0.6) | pval > c(0.05))])
 head(corr_tab_adj)
 
+#turn back into matrix
+mat_corr_adj <- with(corr_tab_adj, {
+  out <- matrix(nrow=nlevels(row), ncol=nlevels(col),
+                dimnames=list(levels(row), levels(col)))
+  out[cbind(row, col)] <- corr
+  out
+})
+
+#set NaN to zero
+mat_corr_adj[is.na(mat_corr_adj)] <- 0
+#remove rows that are completely empty
+mat_corr_no0 = mat_corr_adj[apply(mat_corr_adj[,-1], 1, function(x) !all(x==0)),]
+dim(mat_corr_no0)
+dim(mat_corr_adj)
 
 # #compute the matrix of p-value
 # # mat : is a matrix of data
