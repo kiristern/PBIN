@@ -4,11 +4,21 @@ library(ggpubr)
 ## BETWEEN 2 PTS ##
 
 #correlation anylysis: The Spearman correlation method computes the correlation between the rank of x and the rank of y variables.
-#using output of gLV_preprocess.R script
-viral_bacterial <- read.csv("gLV_table.csv", header = T, row.names = 1)
+bacteria <- t(cyano_samples) #loaded from cyano.R hellinger transformed
+viral <- vir_abun_removed #loaded from Initialize.R hellinger transformed
 
-#transform: hellinger
-vb_helli <- decostand(viral_bacterial, method="hellinger")
+#keep date only (ie. remove everything before first period)
+#change _ to .
+row.names(viral) <- gsub("_", ".", row.names(viral))
+#remove everything before 1st period (just to keep date)
+row.names(viral) <- gsub("^.*?\\.","", row.names(viral))
+#add cyano for all cyano ASVs
+colnames(viral) <- lapply(colnames(viral), function(x) paste("cyano", x, sep = "_"))
+
+
+#merge bacteria and viral
+bv <- merge(bacteria, viral)
+
 
 #visualize data using scatter plots
 ggscatter(vb_helli, x = "ASV_605", y = "micro_ASV_143",
@@ -56,12 +66,19 @@ vb_rcorr = rcorr(as.matrix(vb_helli), type=c("spearman"))
 # extract correlation coefficient
 vb_coeff = vb_rcorr$r
 
+#keep only bacteria-virus correlation (no virus-virus or bact-bact)
+vb_coeff_rem <- vb_coeff[1:38,39:883]
+
 #set NaN to zero
-vb_coeff[is.nan(vb_coeff)] <- 0
-head(vb_coeff)
+vb_coeff_rem[is.nan(vb_coeff_rem)] <- 0
+head(vb_coeff_rem)
 
 # extract p-values
 vb_pval = vb_rcorr$P
+
+#keep only bacteria-virus correlation (no virus-virus or bact-bact)
+vb_pval_rem <- vb_pval[1:38,39:883]
+
 #adjust for multiple comparisons
 pval_adj = p.adjust(vb_pval, method=c("fdr"))
 
@@ -83,7 +100,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
   )
 }
 
-corr_table = flattenCorrMatrix(vb_coeff, vb_pval)
+corr_table = flattenCorrMatrix(vb_coeff_rem, vb_pval_rem)
 head(corr_table)
 
 
@@ -113,14 +130,14 @@ head(vb_pval)
 
 #visualize
 colourpalette <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
-corrplot(vb_coeff,  method="color", col=colourpalette(200),  
-         type="upper", 
+corrplot(vb_coeff_rem,  method="color", col=colourpalette(200),  
+         type="full", 
          order="hclust", #reorder: hierarchical clustering according to the correlation coeff
         #addCoef.col = "black", # Add coefficient of correlation
          tl.col="black", tl.srt=45, #Text label color and rotation
-         p.mat = vb_pval,     #add significance level to the correlogram
-         sig.level = 0.05, #correlations with p-value > 0.05 are considered as insignificant. 
-         insig = "blank", #leave blank on no significant coeff
-         diag=FALSE      # hide correlation coefficient on the principal diagonal
+         # p.mat = vb_pval_rem,     #add significance level to the correlogram
+         # sig.level = 0.05, #correlations with p-value > 0.05 are considered as insignificant. 
+         # insig = "blank", #leave blank on no significant coeff
+         # diag=FALSE      # hide correlation coefficient on the principal diagonal
 
 )
