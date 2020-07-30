@@ -97,7 +97,7 @@ colnames(cyanobacteria)
 #keep only certain cols
 cyano_samples <- cyanobacteria %>% select(1:50)
 #set rownames back to ASV
-cyano_samples %>% remove_rownames() %>% column_to_rownames(var="ASV")
+cyano_samples <- cyano_samples %>% remove_rownames() %>% column_to_rownames(var="ASV")
 
 
 #########  CYANO SAMPLES TABLE TRANSFORMED BY HELLINGER AND REMOVED SAMPLES <10% ##########
