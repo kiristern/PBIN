@@ -1121,9 +1121,9 @@ rf_samp <- ASV_count
 #upload cyano ASV data
 cyano_counts <- read.table("cyano/Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
 colnames(cyano_counts)
-rf_meta <- cyano_counts[1:135] #select only first 135 cols
+bact_meta <- cyano_counts[1:135] #select only first 135 cols
 # duplicated(colnames(rf_meta)) #check if there are duplicates
-colnames(rf_meta) <- substring(colnames(rf_meta), 2) #remove X at beginning of the date
+colnames(bact_meta) <- substring(colnames(bact_meta), 2) #remove X at beginning of the date
 
 
 ### ENSURE SAME SAMPLES FOR BOTH BACTERIAL AND CYANO
@@ -1136,7 +1136,7 @@ sampID_date <- sub("*._*._*._*._*._*._*._","", sampID)
 
 # ie. select cols that match dates
 library(tidyverse)
-resp_var <- rf_meta[(colnames(rf_meta) %in% sampDate),]
+resp_var <- bact_meta[(colnames(bact_meta) %in% sampDate),]
 
 colnames(rf_samp)[colnames(rf_samp) == "FLD0295_15_05_2011_1"] <- "FLD0295_15_05_2011_2" #dates were duplicated therefore need to correct
 colnames(rf_samp) <- sub("*._*._*._*._*._*._*._","", colnames(rf_samp)) #remove everything before 1st _ (just to keep date)
@@ -1184,8 +1184,49 @@ micro_ps %>% tax_table()
 doli_ps
 cyano_ps
 
+
+
 #make one column for outcome/response variable
 micro_response <- micro_ps %>% otu_table() %>% t()
+
+# micro_df <- data.frame()
+# for (i in 1:ncol(micro_response)){
+#   micro_df[,i] <- merge(micro_response[,i], predictors, by="row.names")
+# }
+
+# m7 <- merge(micro_response[,1], predictors, by="row.names")
+# rownames(m7) <- m7[,1]
+# m7$Row.names <- NULL
+# names(m7)[1] <- "micro_ASV_7"
+# 
+# m8 <- merge(micro_response[,2], predictors, by="row.names")
+# rownames(m8) <- m8[,1]
+# m8$Row.names <- NULL
+# names(m8)[1] <- "micro_ASV_8"
+# 
+# m143 <- merge(micro_response[,3], predictors, by="row.names")
+# rownames(m143) <- m143[,1]
+# m143$Row.names <- NULL
+# names(m143)[1] <- "micro_ASV_143"
+# 
+# rownames(micro_response) == rownames(m7)
+# head(rownames(micro_response))
+# head(rownames(m7))
+# 
+# micro_response <- micro_response[order(row.names(micro_response)), ]
+# m7 <- m7[order(row.names(m7)),]
+# 
+# m8 <- m8[order(row.names(m8)),]
+# m143 <- m143[order(row.names(m143)),]
+
+
+#put in the same order for rownames
+rownames(predictors) %in% rownames(micro_response)
+predictors <- predictors[order(row.names(predictors)),]
+
+rownames(predictors) == rownames(micro_response)
+
+#make one column for outcome/response variable
 micro_ASV_7 <- as.factor(micro_response[,1])
 micro_ASV_8 <- as.factor(micro_response[,2])
 micro_ASV_143 <- as.factor(micro_response[,3])
@@ -1196,17 +1237,68 @@ m8 <- data.frame(micro_ASV_8, predictors)
 m143 <- data.frame(micro_ASV_143, predictors)
 
 
+# doli
+doli_response <- doli_ps %>% otu_table() %>% t()
+head(doli_response)
+
+d10 <- merge(doli_response[,1], predictors, by="row.names")
+rownames(d10) <- d10[,1]
+d10$Row.names <- NULL
+names(d10)[1] <- "doli_ASV_10"
+
+d11 <- merge(doli_response[,2], predictors, by="row.names")
+rownames(d11) <- d11[,1]
+d11$Row.names <- NULL
+names(d11)[1] <- "doli_ASV_11"
+
+d16 <- merge(doli_response[,3], predictors, by="row.names")
+rownames(d16) <- d16[,1]
+d16$Row.names <- NULL
+names(d16)[1] <- "doli_ASV_16"
+
+d18 <- merge(doli_response[,4], predictors, by="row.names")
+rownames(d18) <- d18[,1]
+d18$Row.names <- NULL
+names(d18)[1] <- "doli_ASV_18"
+
+d50 <- merge(doli_response[,5], predictors, by="row.names")
+rownames(d50) <- d50[,1]
+d50$Row.names <- NULL
+names(d50)[1] <- "doli_ASV_50"
+
+d85 <- merge(doli_response[,6], predictors, by="row.names")
+rownames(d85) <- d85[,1]
+d85$Row.names <- NULL
+names(d85)[1] <- "doli_ASV_85"
+
+d110 <- merge(doli_response[,7], predictors, by="row.names")
+rownames(d110) <- d110[,1]
+d110$Row.names <- NULL
+names(d110)[1] <- "doli_ASV_110"
+
+d129 <- merge(doli_response[,8], predictors, by="row.names")
+rownames(d129) <- d129[,1]
+d129$Row.names <- NULL
+names(d129)[1] <- "doli_ASV_129"
+
+d356 <- merge(doli_response[,9], predictors, by="row.names")
+rownames(d356) <- d356[,1]
+d356$Row.names <- NULL
+names(d356)[1] <- "doli_ASV_356"
+
+d683 <- merge(doli_response[,10], predictors, by="row.names")
+rownames(d683) <- d683[,1]
+d683$Row.names <- NULL
+names(d683)[1] <- "doli_ASV_683"
+
+d735 <- merge(doli_response[,11], predictors, by="row.names")
+rownames(d735) <- d735[,1]
+d735$Row.names <- NULL
+names(d735)[1] <- "doli_ASV_735"
 
 
-### Microcystis ASV7 ###
-set.seed(1234)
-RFm7 <- randomForest(micro_ASV_7~., data = m7, ntree=100)
-print(RFm7)
-  #OOB estimate of  error rate: 62.9%
-names(RFm7)
-
-
-plotImport <- function(RFm){
+# plot 20 most important viral ASV
+plottop20 <- function(RFm){
   imp <- importance(RFm)
   imp <- data.frame(predictors = rownames(imp), imp)
   #order the predictor levels by importance
@@ -1228,7 +1320,25 @@ plotImport <- function(RFm){
   return(plottop20)
 }
 
-plotImport(RFm7) +
+top20 <- function(RFm){
+  imp <- importance(RFm)
+  imp <- data.frame(predictors = rownames(imp), imp)
+  #order the predictor levels by importance
+  imp.sort <- arrange(imp, desc(MeanDecreaseGini))
+  imp.sort$predictors <- factor(imp.sort$predictors, levels = imp.sort$predictors)
+  #select top 10 predictors
+  imp.top20 <- imp.sort[1:20,]
+  return(imp.top20)
+}
+
+### Microcystis ASV7 ###
+RFm7 <- randomForest(micro_ASV_7~., data = m7, ntree=100)
+print(RFm7)
+#OOB estimate of  error rate: 62.9%
+# names(RFm7)
+
+top20(RFm7)
+plottop20(RFm7) +
   ggtitle("Most important viral ASV for predicting\nMicrocystis ASV7")
 
 # #check what the ASVs are
@@ -1240,19 +1350,46 @@ plotImport(RFm7) +
 RFm8 <- randomForest(micro_ASV_8~., data = m8, ntree=100)
 print(RFm8) 
   #OOB estimate of  error rate: 74.19%
-plotImport(RFm8)+
+plottop20(RFm8)+
   ggtitle("Most important viral ASV for predicting\nMicrocystis ASV8")
 
 
 ### Microcystis ASV143 ###
-RFm143 <- randomForest(micro_ASV_143~., data = m143, ntree=100)
-print(RFm143) 
+RFm143 <- randomForest(micro_ASV_143~., data = predictors, ntree=500)
+print(RFm143)
+plot(RFm143)
 #OOB estimate of  error rate: 25.81%
-plotImport(RFm143)+
+
+plottop20(RFm143)+
   ggtitle("Most important viral ASV for predicting\nMicrocystis ASV143")
 
+#tune the algorithm
+dataset <- m143
+length(dataset)
+x <- dataset[,2:5345]
+y <- dataset[,1]
 
 
+library(randomForest)
+library(caret)
+library(e1071)
+
+#10 folds repeat 3 times
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        repeats=3)
+#Metric compare model is Accuracy
+metric <- "Accuracy"
+#Number randomely variable selected is mtry
+mtry <- sqrt(ncol(x))
+tunegrid <- expand.grid(.mtry=mtry)
+rf_default <- train(micro_ASV_143~., 
+                    data=dataset, 
+                    method='rf', 
+                    metric='Accuracy', 
+                    tuneGrid=tunegrid, 
+                    trControl=control)
+print(rf_default)
 
 
 ### Graph temporal series ###
@@ -1288,10 +1425,10 @@ timeseriedf[,1] <- NULL #remove col1 can also call "timeseriesdf$Row.names"
 timeseriedf$date <- as.Date(with(timeseriedf, paste(year, month, day, sep="-")), "%Y-%m-%d")
 timeseriedf <- timeseriedf[order(as.Date(timeseriedf$date, format="%Y-%m-%d")),] #order by date
 timeseriedf <- timeseriedf[,1:3] #keep only ASV cols
-timeseriedf
+ts <- log(timeseriedf)
 
 #plot
-timeseriedf %>% 
+ts %>% 
   rownames_to_column() %>% 
   gather(key = key, value = value, ASV_143:ASV_1273) %>% 
   mutate(rowname = factor(rowname)) %>% 
@@ -1299,7 +1436,8 @@ timeseriedf %>%
   geom_point() + 
   geom_line() +
   scale_x_continuous(name = "order by date") +
-  scale_y_continuous(name = "abondance")+
+  scale_y_continuous(name = "log(abondance)")+
+  scale_color_manual(values=c("black", "red", "blue"))+
   theme_bw()
 
 
