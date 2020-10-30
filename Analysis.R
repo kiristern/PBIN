@@ -1,23 +1,46 @@
 setwd("~/Documents/GitHub/PBIN/data")
 
 #####Abundance#####
+# TODO: RUN ABUNDANCE_CLEANING.R SCRIPT or
 # df <- read.csv("FINAL_ASV_TAXA_ABUN.csv")
+ # df2 <- read.csv("asvID_filt_rem_rel_abun.csv", row.names = 1, header = T)
+ # head(df2)
 #TODO: make sure col name is "abundance"
+head(df.l)
+head(df.p)
+# df %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
+#   ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
+#   geom_bar(stat = "identity", show.legend = T) +
+#   theme_minimal()
 
-# TODO: RUN ABUNDANCE_CLEANING.R SCRIPT
-df %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
-  ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
-  geom_bar(stat = "identity", width=1, show.legend = F) +
+ggplot(df.l, aes(x = samples.l, y = abundance, fill = ASV_ID.l))+
+  geom_bar(stat="identity", show.legend = T)+
   theme_minimal()
 
-# df_unk <- read.csv("rel_ab_top20_unknown_FINAL.csv")
-# df_unk %>% group_by(samples, ASV_ID) %>% summarise(Relative_Abundance = sum(abundance)) %>%
-#   ggplot(aes(x = samples, y = Relative_Abundance, fill = ASV_ID)) + 
-#   geom_bar(stat = "identity", show.legend = F)
+ggplot(df.p, aes(x = samples.p, y = abundance, fill = ASV_ID.p))+
+  geom_bar(stat="identity", show.legend = T)+
+  theme_minimal()
 
-cya <- read.csv("cyano/cyano_samples.csv")
-mic <- read.csv("cyano/micro_samples.csv")
-dol <- read.csv("cyano/doli_samples.csv")
+
+# asv_rel_abun
+# library(reshape2)
+# df_long <- melt(asv_rel_abun, id.vars=rownames(asv_rel_abun), variable.name = colnames(asv_rel_abun))
+
+
+
+
+#Convert to relative abundance
+ps_rel_abund = phyloseq::transform_sample_counts(filt_virseq, function(x){x / sum(x)})
+phyloseq::otu_table(filt_virseq)[1:5, 1:5]
+phyloseq::otu_table(ps_rel_abund)[1:5, 1:5]
+#Plot
+phyloseq::plot_bar(ps_rel_abund, fill = "Phylum") +
+  geom_bar(aes(color = Phylum, fill = Phylum), stat = "identity", position = "stack") +
+  labs(x = "", y = "Relative Abundance\n") +
+  facet_wrap(~ Status, scales = "free") +
+  theme(panel.background = element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
 
 
 
@@ -34,106 +57,56 @@ p1 = plot_ordination(viral_physeq, GP.ord)
 print(p1)
 
 
+
+
+
+
 ##using breakaway to explore alpha diversity
-##https://github.com/adw96/stamps2018/blob/master/estimation/diversity-lab.R
-
-viral_physeq
-viral_physeq %>% sample_data
-
-#how to extract only values corresponding to period "spring" "summer" "fall"
-# season <- viral_physeq %>% 
-#   subset_samples(Period %in% c("Spring", "Summer", "Fall"))
-
-#look at observed richness plot colour by month
-observed <- sample_richness(viral_physeq)
-summary(observed)
-plot(observed, viral_physeq, color="Years")
-
-#get linear regression
-alpha_df <- estimate_richness(viral_physeq)
-alpha_df <- as.data.frame(alpha_df$Observed)
-alpha_df <- tibble::rowid_to_column(alpha_df, "Sample")
-names(alpha_df)[2] <- "richness"
-plot(alpha_df)
-abline(lm(richness ~ Sample, data=alpha_df))
-#get adjusted R2
-alphadf_summary <- summary(lm(richness~Sample, data = alpha_df))
-alpha_r2 <- alphadf_summary$adj.r.squared
-#get p-value
-alpha_p <- alphadf_summary$coefficients[2,4]
-#add to graph
-rp = vector('expression',2)
-rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
-                   list(MYVALUE = format(alpha_r2,dig=3)))[2]
-rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
-                   list(MYOTHERVALUE = format(alpha_p, digits = 2)))[2]
-legend("topleft", legend = rp, bty = "n")
-
-#find linear regression formula
-lm(richness ~ Idx, data = alpha_df)
-#y = 0.9103x + 188.7873
-
-
-#observed richness 
-#Sequencing depth by Year
-# data.frame("observed_richness" = (observed %>% summary)$estimate,
-#            "Depth" = phyloseq::sample_sums(viral_physeq), # sequence depth
-#            "type" = viral_physeq %>% sample_data %>% get_variable("Years")) %>%
-#   ggplot(aes(x = Depth, y = observed_richness, color = type)) +
-#   geom_point()
-# 
-# #Year by month
-# data.frame("observed_richness" = (observed %>% summary)$estimate,
-#            "Years" = viral_physeq %>% sample_data %>% get_variable("Years"),
-#            "type" = viral_physeq %>% sample_data %>% get_variable("Months")) %>%
-#   ggplot(aes(x = Years, y = observed_richness, color = type)) +
-#   geom_point()
-# 
-# #Month by year
-# data.frame("observed_richness" = (observed %>% summary)$estimate,
-#            "Months" = viral_physeq %>% sample_data %>% get_variable("Months"),
-#            "type" = viral_physeq %>% sample_data %>% get_variable("Years")) %>%
-#   ggplot(aes(x = Months, y = observed_richness, color = type)) +
-#   geom_point()
-
-#estimate number of missing species using a species richness estimate
-ba <- breakaway(viral_physeq)
+#species richness estimate
+ba <- breakaway(filt_virseq)
 ba
-plot(ba, viral_physeq, color="Years") 
+plot(ba, filt_virseq, color="Years") 
 #y = 0.9103x + 188.7873
 
 #get sample names
-# x <- viral_physeq %>% sample_data %>% rownames()
+x <- viral_physeq %>% sample_data %>% rownames()
+
 
 #table of sample names, richness, and error 
-# alpha_err <- data.frame(x,
-                        # summary(ba)$estimate,
-                        # summary(ba)$error,
-                        # make_design_matrix(viral_physeq, "Years"))
+ alpha_err <- data.frame(x,
+                        summary(ba)$estimate, #richness
+                        summary(ba)$error, #stnd dev
+                        make_design_matrix(viral_physeq, "Years"))
+alpha_err$count <- 1:nrow(alpha_err)
+ 
+plot(ba)
 
-# richness <- summary(ba)$estimate
-# std_dev <- summary(ba)$error
-# 
-# plot(x, richness,
-#      ylim = range(c(richness-std_dev, richness+std_dev)),
-#      xlim = 
-#      pch=19, xlab = "Sample", ylab = "Richness +/- Std Dev",
-#      main = "Alpha div with std.dev error bars"
-# )
-# #hack: draw arrow heads as lines
-# arrows(x, richness-std_dev, x, richness+std_dev, length=0.05, angle = 90, code=3)
 
 #for variables Years and bloom2
+#boxplot bloom
+ba_bloom = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
+                       "Bloom" = filt_virseq %>% sample_data %>% get_variable("bloom2"))
+ 
+(ba_plot <-  ggplot(ba_bloom, aes(x = Bloom, y = ba_observed_richness))+
+   geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
+                             geom="crossbar", width=0.5) + theme_minimal()
+
+#boxplot years
 ba_years = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
-           "Years" = viral_physeq %>% sample_data %>% get_variable("Years"))
-#write.table(ba_years, "ba_years.txt")
-ba_years <- read.table("ba_years.txt", header = T)
+           "Years" = filt_virseq %>% sample_data %>% get_variable("Years"))
+#write.table(ba_years, "ba_years_filt_virseq.txt")
+ba_years <- read.table("ba_years_filt_virseq.txt", header = T)
+
+#finding linear regression:
+#http://r-statistics.co/Linear-Regression.html 
 fit <- lm(ba_observed_richness ~ Years, data = ba_years)
 coefs <- coef(fit)
+summary(fit)
+
 #get r2
 (r2 = signif(summary(fit)$adj.r.squared))
 #get p-value
-(pval <- signif(summary(fit)$coef[2,4]))
+(pval <- signif(summary(fit)$coef[2,4])) #wrong! coef[2,4] != p-val
 
 (ba_plot <-  ggplot(ba_years, aes(x = Years, y = ba_observed_richness))+
   geom_point()+
@@ -142,16 +115,11 @@ coefs <- coef(fit)
                        #"Intercept =", signif(coefs[1]),
                        #"Slope =", signif(coefs[2]),
                        "p-value =", pval)))
-
 #geom_crossbar()
 ba_plot + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                        geom="crossbar", width=0.5) + theme_minimal()
 
 
-# #geom_errorbar()
-# ba_plot + stat_summary(fun.data=mean_sdl, fun.args = list(mult=1), 
-#                geom="errorbar", color="red", width=0.2) +
-#   stat_summary(fun.y=mean, geom="point", color="red")
 
 
 #look at just one sample
@@ -201,10 +169,9 @@ dv_viral_ps <- divnet(viral_physeq, ncores = 4)
 
 
 ######## Beta Diversity ##########
-#subset data between bloom and non bloom samples
-data_bloom <- subset_samples(viral_physeq, bloom2=="yes")
-data_no_bloom <- subset_samples(viral_physeq, bloom2=="no")
-
+# #subset data between bloom and non bloom samples
+# data_bloom <- subset_samples(viral_physeq, bloom2=="yes")
+# data_no_bloom <- subset_samples(viral_physeq, bloom2=="no")
 
 # PCoA plot using the unweighted UniFrac and JSD as distance
 unifrac_dist <- phyloseq::distance(viral_physeq, method="unifrac", weighted=T)
@@ -251,6 +218,33 @@ adonis(unifrac_dist ~ sample_data(viral_physeq)$Months)
 #Permanova test using adonis function
 adonis(dist ~ variable, as(sample_data(data), "data.frame"))
 
+
+#####Phyloseq analysis#####
+
+#Transform to relative abundance
+SmileT<- transform_sample_counts(filt_vir, function(x) x / sum(x) )
+
+# PCoA plot using the unweighted UniFrac and JSD as distance
+unifrac_dist <- phyloseq::distance(filt_vir_seq, method="unifrac", weighted=T)
+jsd_dist <- sqrt(phyloseq::distance(filt_vir_seq, "jsd")) #jsd is a semi-metric
+
+#ordination_betadiversity_PCOA
+pcoa=ordinate(filt_vir_seq, "PCoA", distance=jsd_dist)
+nmds=ordinate(filt_vir_seq,"NMDS",distance=jsd_dist)
+
+#Permanova test using adonis function
+adonis(jsd_dist ~ Years, as(sample_data(filt_vir_seq), "data.frame"))
+
+
+
+#Dispersion analysis
+betatax=betadisper(jsd_dist,data.frame(sample_data(filt_vir_seq))$Years)
+p=permutest(betatax)
+p$tab
+
+#ANOSIM test
+variable_group = get_variable(filt_vir_seq, "Years")
+variable_group = anosim(jsd_dist, variable_group)
 
 
 
