@@ -179,3 +179,44 @@ for (i in 1:length(meta2$Date)){
 }
 
 write.csv(meta2, "metadata2.csv")
+
+
+
+
+
+##### merge metatable (from metadata_w_cmd.csv) -- add microcystin data ######
+env_tab <- read.table("File_S1_Environmental_Table.txt")
+head(env_tab)
+head(meta)
+
+colnames(env_tab) <- c("SampleID", "Julia", "Week", "Months", "Years", "Site", "Season", "Bloom", "TP", "TN", "DP", 
+                       "DN", "Precipitation", "Temperature", "Microcystin", "Description")
+
+#match sample dates
+meta2 <- meta
+
+rownames(meta2)[rownames(meta2) == "FLD0295_15_05_2011_1"] <- "FLD0295_15_05_2011_2" #dates were duplicated therefore need to correct
+
+#remove sample ID at beginning
+row.names(meta2) <- sub("*._*._*._*._*._*._*._","", row.names(meta2))
+#change "_" to "."
+rownames(meta2) <- gsub("_", ".", row.names(meta2))
+
+#make sure meta matches new meta samples
+nrow(meta2)
+nrow(env_tab)
+
+env_tab$Description %in% rownames(meta2)
+
+#merge env_tab Microcystin based on Description
+meta2$Microcystin <- env_tab$Microcystin[match(rownames(meta2), env_tab$Description)]
+
+meta2$Description <- rownames(meta2)
+# #rm accidentally added cols
+# drop <- c("desc")
+# meta2 <- meta2[, !(names(meta2) %in% drop)]
+
+rownames(meta2) <- rownames(meta)
+head(meta2, n=2)
+meta2 <- meta2 %>% select(Description, everything()) #move Description col to first position in df
+write.csv(meta2, "Metadata.csv")
