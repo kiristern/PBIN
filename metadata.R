@@ -195,28 +195,34 @@ colnames(env_tab) <- c("SampleID", "Julia", "Week", "Months", "Years", "Site", "
 #match sample dates
 meta2 <- meta
 
+meta2$ID <- rownames(meta2)
+
+table(rownames(meta2)) #check for duplicates -- won't be cause the sample ID is different even tho date is the same
 rownames(meta2)[rownames(meta2) == "FLD0295_15_05_2011_1"] <- "FLD0295_15_05_2011_2" #dates were duplicated therefore need to correct
 
 #remove sample ID at beginning
-row.names(meta2) <- sub("*._*._*._*._*._*._*._","", row.names(meta2))
+meta2$description <- sub("*._*._*._*._*._*._*._","", row.names(meta2))
 #change "_" to "."
-rownames(meta2) <- gsub("_", ".", row.names(meta2))
+meta2$description <- gsub("_", ".", meta2$description)
 
 #make sure meta matches new meta samples
 nrow(meta2)
 nrow(env_tab)
 
-env_tab$Description %in% rownames(meta2)
+env_tab$Description %in% meta2$description
+intersect(env_tab$Description, meta2$description) #which ones are the same
+length(setdiff(env_tab$Description, meta2$description)) ##count how many are different
+ 
+sum(!is.na(env_tab$Microcystin)) #how many non NA values in Microcystin
 
 #merge env_tab Microcystin based on Description
-meta2$Microcystin <- env_tab$Microcystin[match(rownames(meta2), env_tab$Description)]
+metamerge <- merge(meta2, env_tab[,c("Description", "Microcystin")], by.x="description", by.y = "Description", all.x = T)
+rownames(metamerge) <- metamerge$ID
 
-meta2$Description <- rownames(meta2)
-# #rm accidentally added cols
-# drop <- c("desc")
-# meta2 <- meta2[, !(names(meta2) %in% drop)]
+#rm a cols
+drop <- c("ID")
+metamerge <- metamerge[, !(names(metamerge) %in% drop)]
 
-rownames(meta2) <- rownames(meta)
-head(meta2, n=2)
-meta2 <- meta2 %>% select(Description, everything()) #move Description col to first position in df
-write.csv(meta2, "Metadata.csv")
+head(metamerge, n=2)
+metamerge <- metamerge %>% select(description, everything()) #move Description col to first position in df
+write.csv(metamerge, "Metadata.csv")
