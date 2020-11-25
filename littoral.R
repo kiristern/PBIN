@@ -552,8 +552,27 @@ vir.rda <- rda(formula=gen.imp ~ Months + Years + Site + Period + bloom2 +
 library(mvpart)
 library(plyr)
 
-sp.asv.rm
-colnames(env_keep)
+helliL
+microcystin <- as.data.frame(meta$Microcystin, rownames(meta))
+microcystin$ID <- rownames(microcystin)
+complete.cases(microcystin)
+#rm NAs
+mic_keep <- microcystin[complete.cases(microcystin), ]
+mic_keep %>% dplyr::glimpse() 
+summary(mic_keep)
+head(mic_keep)
+names(mic_keep)[1] <- "mic"
+
+ncol(helliL)
+helliL_keep <- helliL[, colnames(helliL) %in% mic_keep$ID]
+#ncol(helliL) - length(setdiff(colnames(helliL), mic_keep$ID))
+ncol(helliL_keep)
+nrow(mic_keep)
+mk <- mic_keep[rownames(mic_keep) %in% colnames(helliL_keep),]
+nrow(mk)
+hLk <- t(helliL_keep)
+
+regT <- mvpart(hLk ~ mic, mk, xv="pick", xvmult=1000)
 
 #use all data to identify which group accurately predicts 
 mrt <- mvpart(data.matrix(sp.asv.rm) ~ ., env_keep, xv = "pick", xvmult=1000)
