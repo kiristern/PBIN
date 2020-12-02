@@ -6,33 +6,40 @@ setwd("~/Documents/GitHub/PBIN/data")
 #### UPLOAD DATA ####
 #upload viral ASV count table and metadata
 ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
+colnames(ASV_count)[colnames(ASV_count) == "FLD0295_15_05_2011_1"] <- "FLD0295_15_05_2011_2" #dates were duplicated therefore need to correct
 head(ASV_count)
-meta <- read.csv("Metadata.csv", row.names = 1, header = T)
-head(meta)
+meta <- read.csv("meta_cmd.csv", row.names = 1, header = T)
 meta$Years <- as.factor(meta$Years)
 str(meta)
+
+sum(!is.na(meta$Microcystin)) #how many non NA values in microcystin col
+head(meta)
+sort(rownames(meta))
+meta <- subset(meta, select=-Microcystin) #rm Microcystin col... not enough data
 
 #get basic meta data info for methods section of report
 length(ASV_count)
 nrow(meta)
-(amt <- meta %>% group_by(Years) %>% summarise(amount=length(Years))) #view how many samples per year
+(amt <- meta %>% group_by(Years) %>% summarise(amount=count(Years))) #view how many samples per year
 min(amt[,2])
 max(amt[,2])
 median(as.numeric(unlist(amt[,2]))) #get median samples per year
-meta %>% group_by(Site) %>% summarise(amount=length(Site))
+meta %>% group_by(Site) %>% summarise(amount=count(Site))
 
 
 #ensure same samples between ASV_count and meta
 asv_count_meta <- ASV_count[,(colnames(ASV_count) %in% rownames(meta))]
 length(asv_count_meta)
-
+nrow(meta)
 
 #filter by site
 meta_littoral <- meta %>%
   filter(Site == "Littoral")
 
+colnames(meta_littoral)
+
 #filter viral count by littoral / pelagic (ie. select cols that match rownames from litt. or pel.)
-vir_count_littoral <- as.data.frame(ASV_count[, (colnames(ASV_count) %in% rownames(meta_littoral))])
+vir_count_littoral <- as.data.frame(asv_count_meta[, (colnames(asv_count_meta) %in% rownames(meta_littoral))])
 #write.table(vir_count_littoral, "ASV_count_littoral.txt", row.names = T, quote = F, sep = "\t")
 
 
@@ -43,7 +50,7 @@ library(phyloseq)
 
 #add ASV count table, metadata, virTree to phyloseq table
 count_phyL <- otu_table(vir_count_littoral, taxa_are_rows=T)
-sample_info <- sample_data(meta)
+sample_info <- sample_data(meta_littoral)
 virTree <- read_tree("viral_tree")
 
 fake_taxa <- read.table("fake_viral_tax.txt", header = T, row.names = 1, fill=T)
@@ -224,49 +231,267 @@ dim(nonrare_helliL2)
 
 
 
+
+##### ANALYSIS #####
+
+###### ABUNDANCES ######
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(vegan)
+
+#transpose ASV count table
+vir_lit <- t(vir_count_littoral)
+
+#get total count of asv
+asv_tot.l <- colSums(vir_lit)
+
+#transform to df
+asv_tot.l <- as.data.frame(asv_tot.l)
+
+#extract asv_id 
+asv_id.l <- row.names(asv_tot.l)
+
+#add asv_ids to df
+asv_tot.l$ID=asv_id.l
+
+#add new empty column
+newcol <- "rel_ab"
+asv_tot.l[,newcol] <- NA
+
+#get relative abundance function
+get_rel_abun <- function(x){
+  x / sum(x)
+}
+
+#apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
+asv_tot.l[3] <- get_rel_abun(asv_tot.l[1])
+
+sum(asv_tot.l$rel_ab)
+
+
+#sort relative abundance from largest to smallest
+asv_tot.l <- arrange(asv_tot.l, desc(rel_ab))
+
+top20.l <- head(asv_tot.l, 20)
+top20.l
+
+sum(top20.l$rel_ab)
+
+# write.csv(top20.l, "top20L_oct29.csv")
+
+sort(top20.l$ID)
+
+top20.l <- read.csv("top20L_virL_blastn_nov26.csv")
+top20.l <- top20.l[-c(6:9),]
+head(top20.l, n=2)
+
+vir_lit <- t(vir_count_littoral)
+#select top20 ASVs from full df
+asv_tax.l <- vir_lit[,(colnames(vir_lit) %in% top20.l$query)]
+nrow(asv_tax.l)
+ncol(asv_tax.l)
+
+#relative abundance matrix
+asv_rel_abun.l <- as.data.frame(decostand(asv_tax.l, method="total"))
+head(asv_rel_abun.l, n=2)
+
+#change col names to taxa ID (get query and rel_ab cols)
+head(name_tax.l <- top20.l[,c(1,2)])
+
+#add brackets around query
+name_tax.l$ID_brackets <- with(name_tax.l, paste0("(", query, ")"))
+
+#merge ASV name with ID in new col
+head(virus_ID.l <- paste(top20.l$Description, name_tax.l$ID_brackets, sep=" "))
+
+#add col to name_tax df
+name_tax.l <- add_column(name_tax.l, virus_ID.l)
+head(name_tax.l)
+
+
+#change ASV_ to real taxonomic name
+names(asv_rel_abun.l) <- name_tax.l$virus_ID.l[match(names(asv_rel_abun.l), name_tax.l$query)]
+colnames(asv_rel_abun.l)
+
+#duplicate each sample 20 times (number of unique ASVs)
+asv_rel_abun_dup.l <- asv_rel_abun.l[rep(seq_len(nrow(asv_rel_abun.l)), each = 20), ]
+
+nrow(asv_rel_abun.l)
+#create new row of repeated ASV_IDs n times (# of samples)
+ASV_ID.l <- data.frame(ASV_ID.l = c(colnames(asv_rel_abun_dup.l)))
+n=94
+replicate.l <- do.call("rbind", replicate(n, ASV_ID.l, simplify = FALSE))
+
+#write.csv(replicate, "replicate_filt_removed.csv")
+#replicate <- read.csv("replicate_test.csv")
+
+#add ASV_ID col to asv_rel_abun df
+asv_rel_abun_dup.l <- add_column(asv_rel_abun_dup.l, replicate.l, .before=1)
+
+#create new col named samples which duplicates rownames
+samples.l <- row.names(asv_rel_abun_dup.l)
+
+#add col to df
+asv_rel_abun_dup.l <- add_column(asv_rel_abun_dup.l, samples.l, .before=1)
+
+#remove everything after "."
+asv_rel_abun_dup.l$samples.l <- gsub("\\..*", "", asv_rel_abun_dup.l$samples.l)
+# write.csv(asv_rel_abun_dup, file = "repeat_sample_names_test.csv")
+
+#transpose
+sample_abundance.l <- as.data.frame(t(asv_rel_abun.l))
+
+#one col of all abundances
+stacked.l <- stack(sample_abundance.l)
+
+#add stacked to asv_rel_abun_dup df
+asv_rel_abun_dup.l <- add_column(asv_rel_abun_dup.l, stacked.l$values, .after=1)
+
+#select certain cols only
+df.l <- asv_rel_abun_dup.l %>% select("samples.l", "stacked.l$values")
+df.l <- asv_rel_abun_dup.l[,1:2]
+
+#add replicate names to df
+df.l <- add_column(df.l, replicate.l, .before=1)
+
+#rename cols
+names(df.l)[names(df.l) == "stacked.l$values"] <- "abundance"
+
+# write.csv(df, file="asvID_filt_rem_rel_abun.csv")
+
+#make a taxa col
+df.l <- df.l %>% mutate(taxa = ASV_ID.l)
+
+#remove brackets
+df.l$taxa <- gsub("\\s*\\([^\\)]+\\)","",as.character(df.l$taxa))
+
+head(df.l)
+
+#isolate for years only
+df.l$Years <- gsub("^([^_]*_[^_]*_[^_]*_[^_]*)_.*$", "\\1", rownames(asv_rel_abun.l)) #removes everything after last _
+df.l$Years <- gsub('^(?:[^_]*_)*\\s*(.*)', '\\1',df.l$Years)
+
+#isolate for date only
+df.l$date <- gsub("^([^_]*_[^_]*_[^_]*_[^_]*)_.*$", "\\1", rownames(asv_rel_abun.l)) #removes everything after last _
+df.l$date <- sub("*._*._*._*._*._*._*._","", df.l$date) #remove sample ID at beginning
+
+#write.csv(df.l, "df.l.csv")
+
+#plot
+ggplot(df.l, aes(x = samples.l, y = abundance, fill = ASV_ID.l))+
+  geom_bar(stat="identity", show.legend = T)+
+  scale_x_discrete(labels = df.l$date, name="Sample date")+ #change sample name to date
+  ggtitle("Relative abundance of littoral viral ASV by date")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), #rotate axis labels
+        plot.title = element_text(hjust = 0.5))+ #center title
+  scale_y_continuous(name = "Relative abundance")+ #change axis title
+  labs(fill = "ASV ID") #change legend title
+
+
+
+
+
+
+
+
 ###### RDA HELLINGER #####
-otutabL
-length(meta)
-colnames(meta)
-head(env <-  meta[,3:17])
-colnames(env)
+#https://wiki.qcbs.ca/r_workshop10 #chosing best var using ordir2step
+library(vegan) #for multivariate analyses
+library(mvpart) 
+library(MVPARTwrap)
+library(rdaTest)
+library(labdsv) #for identification of significant indicator species in the MRT)
+library(plyr) # classification for linear discriminant analysis
+library(MASS) #for linear discriminant analysis)
+
+asv_count_meta
+meta
+
+#explore asv community data
+names(asv_count_meta) #see names of cols
+dim(asv_count_meta) #dimensions; number of cols and rows
+str(asv_count_meta) #display internal structure of objects
+head(asv_count_meta, n=2) #first 2 rows of df
+summary(asv_count_meta) #summary stats for each col
+
+#species distribution
+(ab<- table(unlist(asv_count_meta)))
+barplot(ab[1:5], las=1, xlab="Abundance class", ylab = "Frequency", col=grey(5:0/5)) #high frequency of zeros
+#absences in asv data
+sum(asv_count_meta==0)
+#proportion of zeros in dataset
+sum(asv_count_meta==0)/(nrow(asv_count_meta)*ncol(asv_count_meta))
+#hellinger transformation (expresses abundances as the sqrt of their relative abundance at each site) to avoid the use of db-zeros as indications of resemblance among sites.
+vir_helli <- decostand(asv_count_meta, method="hellinger")
+
+#Explore environmental data
+env <- meta
+names(env)
+
+dim(env)
+str(env)
+head(env, n=2)
+summary(env)
+#pairs(env, main="Bivariate plots of the environmental data")
+
+#remove catagorical data from env (do RDA without sites and time -- see PERMANOVA (far) below)
+str(env)
+env_vars <- env[,!(colnames(env) %in% c("description", "Date", "Months", "Years", "Site", "Period", "bloom2",
+                                        "Dolicho.Abundance", "Micro.Abundance", "Cyano.Abundance", "Microcystin"))]
+colnames(env_vars)
 
 #standardize environmental data
-env[,c(6:15)]<-decostand(env[,c(6:15)], method="standardize")
+env_vars[,c(1:6)]<-decostand(env_vars[,c(1:6)], method="standardize")
+apply(env_vars[,1:6], 2, mean) #data are now centered (mean~0)
+apply(env_vars[,1:6], 2, sd) #data are now scaled (st. dev =1)
 
 #check how many rows there are without any NAs
-complete.cases(env)
+complete.cases(env_vars)
 #rm NAs
-env_keep <- env[complete.cases(env), ]
+env_keep <- env_vars[complete.cases(env_vars), ]
 env_keep %>% dplyr::glimpse() 
 summary(env_keep)
 nrow(env_keep)
-sum(!is.na(meta$Microcystin)) #check how many non NA values are in df
+
 
 #### Remove viral asvs that are not present (due to removal of NA from env vars)
-sp.asv <- t(helliL)
+virt <- t(vir_helli)
 
-#check which rows are not the same
-row.names(sp.asv) %in% row.names(env_keep)
-#which rows are the same
-#intersect(abund_name, env_row_name)
+#check samples are not the same
+rownames(virt) %in% row.names(env_keep)
 
-#specific samples that are not the same
-(row_remove <- setdiff(row.names(sp.asv), row.names(env_keep)))
-#count how many are different
-length(setdiff(row.names(sp.asv), row.names(env_keep)))  
-
-#remove rows (samples) that aren't in env_var from abundance
-sp.asv.rm <- sp.asv[!(row.names(sp.asv) %in% row_remove), ]
+virt.rm <- virt[rownames(virt) %in% rownames(env_keep),]
+dim(virt.rm)
 
 # species and enviro data without NAs needed for RDA
-head(sp.asv.rm)
-head(env_keep)
+virt.rm
+env_keep
 
-length(env_keep)
-length(sp.asv.rm)
+length(env_keep) #number of env vars
+ncol(virt.rm) #number of asv
 nrow(env_keep)
-nrow(sp.asv.rm)
+nrow(virt.rm)
+
+#run rda
+vir.rda <- rda(virt.rm~., data = env_keep)
+
+#extract the results
+summary(vir.rda, display = NULL)
+#These results contain: (1) the proportion of variance of Y explained by the X variables (constrained proportion, 16.17% here)
+#(2) the unexplained variance of Y (unconstrained proportion, 83.83% here) and 
+#(3) then summarize the eigenvalues, the proportions explained and the cumulative proportion of each canonical axis 
+# (each canonical axis = each constraining variable, in this case, the environmental variables from env).
+
+#select the significan explanatory variables by forward selection
+ordiR2step(rda(virt.rm~1, data = env_keep), scope=formula(vir.rda), direction="forward", R2scope = T, pstep=1000)
+
+anova.cca(vir.rda, by ="terms")
+
+(R2adj <- RsquareAdj(vir.rda)$adj.r.squared)
+
+
+env.signif <- subset(env.z, select = c("alt", "oxy", "dbo"))
 
 
 
@@ -276,10 +501,7 @@ nrow(sp.asv.rm)
 #decide which distance measure to use by looking at the rank correlations between dissimilarity indices and gradient separation (the higher the value the better)
 rankindex(env_keep, sp.asv.rm, indices = c("euc", "man", "gow", "bra", "kul"), stepacross = F, method = "spearman")
 
-#remove site and temporal data from env_keep (do RDA without sites and time -- see PERMANOVA (far) below)
-colnames(env_keep)
-env_vars <- env_keep[,!(colnames(env_keep) %in% c("Months", "Years", "Site", "Period", "bloom2"))]
-colnames(env_vars)
+
 
 dbRDA <- capscale(sp.asv.rm ~ ., data = env_vars, distance="bray")
 plot(dbRDA)
@@ -545,6 +767,12 @@ vir.rda <- rda(formula=gen.imp ~ Months + Years + Site + Period + bloom2 +
 
 
 ###### RDA HELLINGER NON-RARE ######
+nonrare_helliL2
+
+
+
+
+
 
 
 ###### RegTree HELLINGER #####
@@ -552,27 +780,7 @@ vir.rda <- rda(formula=gen.imp ~ Months + Years + Site + Period + bloom2 +
 library(mvpart)
 library(plyr)
 
-# helliL
-# microcystin <- as.data.frame(meta$Microcystin, rownames(meta))
-# microcystin$ID <- rownames(microcystin)
-# complete.cases(microcystin)
-# #rm NAs
-# mic_keep <- microcystin[complete.cases(microcystin), ]
-# mic_keep %>% dplyr::glimpse() 
-# summary(mic_keep)
-# head(mic_keep)
-# names(mic_keep)[1] <- "mic"
-# 
-# ncol(helliL)
-# helliL_keep <- helliL[, colnames(helliL) %in% mic_keep$ID]
-# #ncol(helliL) - length(setdiff(colnames(helliL), mic_keep$ID))
-# ncol(helliL_keep)
-# nrow(mic_keep)
-# mk <- mic_keep[rownames(mic_keep) %in% colnames(helliL_keep),]
-# nrow(mk)
-# hLk <- t(helliL_keep)
-# 
-# regT <- mvpart(hLk ~ mic, mk, xv="pick", xvmult=1000)
+helliL
 
 #use all data to identify which group accurately predicts 
 mrt <- mvpart(data.matrix(sp.asv.rm) ~ ., env_keep, xv = "pick", xvmult=1000)
