@@ -481,6 +481,8 @@ ordiR2step(rda(vir.rm~1, data = env_keep), scope=formula(vir.rda), direction="fo
 
 anova.cca(vir.rda, by ="terms")
 
+adonis(vir.rm~., data = env_keep)
+
 #get adjusted R2
 (R2adj <- RsquareAdj(vir.rda)$adj.r.squared)
 
@@ -832,26 +834,55 @@ vir.rda <- rda(formula=gen.imp ~ Months + Years + Site + Period + bloom2 +
 
 
 
-##### Cross Correlation function (CCF) ######
-## calculate shannon diversity for cyanobacteria, microcystis, and dolichospermum, and phage, using the same samples.
+###### Mantel test #####
+# https://www.flutterbys.com.au/stats/tut/tut15.2.html
 
-#
+phage <- ASV_count
+dim(phage)
+colnames(phage)
+bact <- cyano_counts
+dim(bact)
+colnames(bact)
 
+#remove sample ID at beginning
+colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
+colnames(phage) <- gsub("_", ".", colnames(phage))
 
+count(colnames(phage) %in% colnames(bact))
+count(colnames(bact) %in% colnames(phage))
 
-shan.div.cyano <- filt_virseq %>%
-  divnet(X = "Years", ncores = 4,
-         base = "ASV_1")
-div_ASV1_years
+#select cols that match dates
+bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
+length(bact_keep)
+phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
+length(phage_keep)
 
+bact_keep <- t(bact_keep)
+phage_keep <- t(phage_keep)
+sum(is.na(phage_keep))
 
-#compare the plug-in Shannon with divnet estimates
-library(ggplot2)
-div_ASV1_years$shannon %>%
-  plot(filt_virseq, color = "Years") +
-  xlab("Sample") +
-  ylab("Shannon diversity estimate\n(ASV level)")
-#only a single DivNet estimate for each year (along with error bars). For characteristics for which many samples were observed, there are smaller error bars than for samples for which there was only one sample (seems reasonable -- we had less data).
+data.dist <- vegdist(wisconsin(sqrt(phage_keep)), "bray")
+
+env.dist <- vegdist(wisconsin(sqrt(bact_keep)),"bray")
+
+plot(data.dist, env.dist)
+abline(lm(env.dist ~ data.dist))
+
+data.mantel <- mantel(data.dist, env.dist, perm=1000)
+data.mantel
+
+#plot
+hist(data.mantel$perm)
+abline(v=data.mantel$statistic)
+
+# #generate correlogram (multivariate correlation plot)
+# plot(data.dist, env.dist, type="n")
+# points(data.dist, env.dist, pch=20)
+# # axis(1 )
+# # axis(2, las=1)
+# mtext("Viral distances", 1, line = 3)
+# mtext("Bacterial distances", 2, line=3)
+# abline(lm(data.dist ~ env.dist))
 
 
 
@@ -1221,65 +1252,6 @@ str(m143)
 # names(m7)[1] <- "micro_ASV_7"
 # names(m8)[1] <- "micro_ASV_8"
 # names(m143)[1] <- "micro_ASV_143"
-
-# # doli
-# doli_response <- doli_ps %>% otu_table() %>% t()
-# head(doli_response)
-# 
-# d10 <- merge(doli_response[,1], predictors, by="row.names")
-# rownames(d10) <- d10[,1]
-# d10$Row.names <- NULL
-# names(d10)[1] <- "doli_ASV_10"
-# 
-# d11 <- merge(doli_response[,2], predictors, by="row.names")
-# rownames(d11) <- d11[,1]
-# d11$Row.names <- NULL
-# names(d11)[1] <- "doli_ASV_11"
-# 
-# d16 <- merge(doli_response[,3], predictors, by="row.names")
-# rownames(d16) <- d16[,1]
-# d16$Row.names <- NULL
-# names(d16)[1] <- "doli_ASV_16"
-# 
-# d18 <- merge(doli_response[,4], predictors, by="row.names")
-# rownames(d18) <- d18[,1]
-# d18$Row.names <- NULL
-# names(d18)[1] <- "doli_ASV_18"
-# 
-# d50 <- merge(doli_response[,5], predictors, by="row.names")
-# rownames(d50) <- d50[,1]
-# d50$Row.names <- NULL
-# names(d50)[1] <- "doli_ASV_50"
-# 
-# d85 <- merge(doli_response[,6], predictors, by="row.names")
-# rownames(d85) <- d85[,1]
-# d85$Row.names <- NULL
-# names(d85)[1] <- "doli_ASV_85"
-# 
-# d110 <- merge(doli_response[,7], predictors, by="row.names")
-# rownames(d110) <- d110[,1]
-# d110$Row.names <- NULL
-# names(d110)[1] <- "doli_ASV_110"
-# 
-# d129 <- merge(doli_response[,8], predictors, by="row.names")
-# rownames(d129) <- d129[,1]
-# d129$Row.names <- NULL
-# names(d129)[1] <- "doli_ASV_129"
-# 
-# d356 <- merge(doli_response[,9], predictors, by="row.names")
-# rownames(d356) <- d356[,1]
-# d356$Row.names <- NULL
-# names(d356)[1] <- "doli_ASV_356"
-# 
-# d683 <- merge(doli_response[,10], predictors, by="row.names")
-# rownames(d683) <- d683[,1]
-# d683$Row.names <- NULL
-# names(d683)[1] <- "doli_ASV_683"
-# 
-# d735 <- merge(doli_response[,11], predictors, by="row.names")
-# rownames(d735) <- d735[,1]
-# d735$Row.names <- NULL
-# names(d735)[1] <- "doli_ASV_735"
 
 
 # plot 20 most important viral ASV
