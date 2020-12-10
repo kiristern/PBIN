@@ -105,10 +105,21 @@ keepTaxa = taxa_names(otutab)[which((L/sum(L)) > minTotRelAb)]
 #keepTaxaL = (xL/sum(xL)) > minTotRelAb #different way to compute line above
 nonrare = prune_taxa(keepTaxa, otutab)
 
-
 #remove taxa not seen more than 1 times in at least 10% of the samples. This protects against ASV with small mean & trivially large coef of var
 filt_virseq <- filter_taxa(viral_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+filt_virseq %>% otu_table() %>% dim
+filt_vir <- filt_virseq %>% otu_table()
 
+dim(ASV_count)
+vir_count.no0 = ASV_count[rowSums(ASV_count)!=0, ]
+vir_pa <- decostand(ASV_count,"pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
+vir_pa_10 <- ASV_count[rowSums(vir_pa)/ncol(vir_pa) >= 0.10,] #select only asv present in more than 10% of samples
+rownames(vir_pa_10)
+dim(vir_pa_10)
+vir_cleaned <- vir_count.no0[rownames(vir_pa_10),]
+dim(vir_cleaned)
+
+filt_virseq %>% otu_table() %>% rownames %in% rownames(vir_cleaned)
 
 
 
@@ -836,6 +847,7 @@ vir.rda <- rda(formula=gen.imp ~ Months + Years + Site + Period + bloom2 +
 
 ###### Mantel test #####
 # https://www.flutterbys.com.au/stats/tut/tut15.2.html
+## Need to run fromscrach_cyano.R
 
 phage <- ASV_count
 dim(phage)
@@ -871,6 +883,54 @@ abline(lm(env.dist ~ data.dist))
 data.mantel <- mantel(data.dist, env.dist, perm=1000)
 data.mantel
 
+
+
+
+
+
+### RM RARE ####
+phage <- filt_vir
+dim(phage)
+colnames(phage)
+
+#filter bact to rm rare
+dim(bact_counts)
+bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
+bact_physeq <- phyloseq(bac_count) #add to phyloseq object
+print(bact_physeq)
+filt_bact <- filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+dim(filt_bact)
+
+bact <- filt_bact
+dim(bact)
+colnames(bact)
+
+
+
+#remove sample ID at beginning
+colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
+colnames(phage) <- gsub("_", ".", colnames(phage))
+
+
+#select cols that match dates
+bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
+dim(bact_keep)
+phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
+dim(phage_keep)
+
+bact_keep <- t(bact_keep)
+phage_keep <- t(phage_keep)
+sum(is.na(phage_keep))
+ 
+dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
+dist_bac<-sqrt(vegdist(bact_keep, method = "bray"))
+
+plot(data.dist, env.dist)
+abline(lm(env.dist ~ data.dist))
+
+data.mantel <- mantel(data.dist, env.dist, perm=1000)
+data.mantel
+
 #plot
 hist(data.mantel$perm)
 abline(v=data.mantel$statistic)
@@ -886,6 +946,143 @@ abline(v=data.mantel$statistic)
 
 
 
+
+#### MANTEL FOR CYANO ####
+bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
+cyano_taxa_ps <- tax_table(cyano_taxa)
+rownames(cyano_taxa_ps) <- rownames(cyano_taxa)
+
+#add to phyloseq object
+bact_physeq <- phyloseq(bac_count, cyano_taxa_ps)
+print(bact_physeq)
+
+#rename cols
+colnames(tax_table(bact_physeq)) <- c("Kingdom", "Phylum", "Class",
+                                      "Order", "Family", "Genus", "ASV")
+
+cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
+
+cyano <- cyano_ps %>% otu_table() 
+
+bact <- cyano
+dim(bact)
+colnames(bact)
+
+phage <- ASV_count
+
+#remove sample ID at beginning
+colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
+colnames(phage) <- gsub("_", ".", colnames(phage))
+
+#select cols that match dates
+bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
+dim(bact_keep)
+phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
+dim(phage_keep)
+
+bact_keep <- t(bact_keep)
+phage_keep <- t(phage_keep)
+sum(is.na(phage_keep))
+
+dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
+dist_bac<-sqrt(vegdist(bact_keep, method = "bray"))
+
+plot(dist_vir, dist_bac)
+abline(lm(dist_bac ~ dist_vir))
+
+data.mantel <- mantel(dist_vir, dist_bac, perm=1000)
+data.mantel
+
+
+
+
+
+
+
+
+#filter bact to rm rare
+bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
+cyano_taxa_ps <- tax_table(cyano_taxa)
+rownames(cyano_taxa_ps) <- rownames(cyano_taxa)
+
+#add to phyloseq object
+bact_physeq <- phyloseq(bac_count, cyano_taxa_ps)
+print(bact_physeq)
+
+#rename cols
+colnames(tax_table(bact_physeq)) <- c("Kingdom", "Phylum", "Class",
+                                      "Order", "Family", "Genus", "ASV")
+
+cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
+
+filt_cyano_ps <- filter_taxa(cyano_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+filt_cyano <- filt_cyano_ps %>% otu_table() 
+
+bact <- filt_cyano
+dim(bact)
+colnames(bact)
+
+# #remove sample ID at beginning
+# colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
+# colnames(phage) <- gsub("_", ".", colnames(phage))
+
+#select cols that match dates
+bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
+dim(bact_keep)
+phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
+dim(phage_keep)
+
+bact_keep <- t(bact_keep)
+phage_keep <- t(phage_keep)
+sum(is.na(phage_keep))
+
+dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
+dist_bac<-sqrt(vegdist(bact_keep, method = "bray"))
+
+plot(dist_vir, dist_bac)
+abline(lm(dist_bac ~ dist_vir))
+
+data.mantel <- mantel(dist_vir, dist_bac, perm=1000)
+data.mantel
+
+data.dist <- vegdist(wisconsin(sqrt(phage_keep)), "bray")
+env.dist <- vegdist(wisconsin(sqrt(bact_keep)),"bray")
+data.mantel2 <- mantel(data.dist, env.dist, perm=1000)
+data.mantel2
+
+#plot
+hist(data.mantel$perm)
+abline(v=data.mantel$statistic)
+
+
+
+
+
+
+##### Procrustes #####
+#https://john-quensen.com/tutorials/procrustes-analysis/
+
+phage_keep_helli <- decostand(phage_keep, "hellinger")
+bact_keep_helli <- decostand(bact_keep, "hellinger")
+
+pca.phage <- rda(phage_keep_helli)
+plot(pca.phage, 
+     scaling = 1, 
+     #display="sites", 
+     #type="text", 
+     main="PCA for phage")
+pca.bact <- rda(bact_keep_helli)
+plot(pca.bact,
+     scaling=1,
+     main="PCA for bacteria")
+
+procr <- procrustes(X = pca.phage, Y = pca.bact, symmetric = T)
+procr
+
+plot(procr, kind=1)
+plot(procr, kind=2)
+
+protest(pca.phage, pca.bact, permutations = 1000)
 
 
 
