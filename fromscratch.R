@@ -111,16 +111,6 @@ filt_virseq <- filter_taxa(viral_physeq, function(x) sum(x > 1) > (0.10*length(x
 filt_virseq %>% otu_table() %>% dim
 filt_vir <- filt_virseq %>% otu_table()
 
-dim(ASV_count)
-vir_count.no0 = ASV_count[rowSums(ASV_count)!=0, ]
-vir_pa <- decostand(ASV_count,"pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
-vir_pa_10 <- ASV_count[rowSums(vir_pa)/ncol(vir_pa) >= 0.10,] #select only asv present in more than 10% of samples
-rownames(vir_pa_10)
-dim(vir_pa_10)
-vir_cleaned <- vir_count.no0[rownames(vir_pa_10),]
-dim(vir_cleaned)
-
-filt_virseq %>% otu_table() %>% rownames %in% rownames(vir_cleaned)
 
 
 
@@ -871,16 +861,6 @@ bact_physeq <- phyloseq(bac_count) #add to phyloseq object
 print(bact_physeq)
 filt_bact <- filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 dim(filt_bact)
-
-# bac_count.no0 = cyano_counts[rowSums(cyano_counts)!=0, ]
-# bact_pa <- decostand(cyano_counts,"pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
-# bact_pa_10 <- cyano_counts[rowSums(bact_pa)/ncol(bact_pa) >= 0.10,] #select only asv present in more than 10% of samples
-# rownames(bact_pa_10)
-# dim(bact_pa_10)
-# bact_cleaned <- bac_count.no0[rownames(bact_pa_10),]
-# dim(bact_cleaned)
-# 
-# rownames(bact_cleaned) %in% rownames(filt_bact)
 
 bact <- filt_bact
 dim(bact)
