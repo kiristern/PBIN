@@ -56,6 +56,7 @@ colnames(mock_taxa)[7] <- "species"
 head(mock_taxa)
 #add to phyloseq object
 viral_physeq <- phyloseq(count_phy, sample_info, virTree, mock_taxa)
+viral_physeq %>% otu_table( ) %>% dim
 
 #check data
 print(viral_physeq)
@@ -849,63 +850,41 @@ vir.rda <- rda(formula=gen.imp ~ Months + Years + Site + Period + bloom2 +
 # https://www.flutterbys.com.au/stats/tut/tut15.2.html
 ## Need to run fromscrach_cyano.R
 
-phage <- ASV_count
-dim(phage)
-colnames(phage)
-bact <- cyano_counts
-dim(bact)
-colnames(bact)
-
-#remove sample ID at beginning
-colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
-colnames(phage) <- gsub("_", ".", colnames(phage))
-
-count(colnames(phage) %in% colnames(bact))
-count(colnames(bact) %in% colnames(phage))
-
-#select cols that match dates
-bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
-length(bact_keep)
-phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
-length(phage_keep)
-
-bact_keep <- t(bact_keep)
-phage_keep <- t(phage_keep)
-sum(is.na(phage_keep))
-
-data.dist <- vegdist(wisconsin(sqrt(phage_keep)), "bray")
-
-env.dist <- vegdist(wisconsin(sqrt(bact_keep)),"bray")
-
-plot(data.dist, env.dist)
-abline(lm(env.dist ~ data.dist))
-
-data.mantel <- mantel(data.dist, env.dist, perm=1000)
-data.mantel
-
-
-
-
-
+count_phy2 <- otu_table(ASV_count, taxa_are_rows=T)
+#add to phyloseq object
+ASVps <- phyloseq(count_phy2)
+dim(ASVps)
+#remove taxa not seen more than 1 times in at least 10% of the samples. This protects against ASV with small mean & trivially large coef of var
+filt_asvseq <- filter_taxa(ASVps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+filt_asvseq %>% otu_table() %>% dim
+filt_vir <- filt_asvseq %>% otu_table()
 
 ### RM RARE ####
+phage <- vir_cleaned
 phage <- filt_vir
 dim(phage)
 colnames(phage)
 
 #filter bact to rm rare
-dim(bact_counts)
 bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
 bact_physeq <- phyloseq(bac_count) #add to phyloseq object
 print(bact_physeq)
 filt_bact <- filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 dim(filt_bact)
 
+# bac_count.no0 = cyano_counts[rowSums(cyano_counts)!=0, ]
+# bact_pa <- decostand(cyano_counts,"pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
+# bact_pa_10 <- cyano_counts[rowSums(bact_pa)/ncol(bact_pa) >= 0.10,] #select only asv present in more than 10% of samples
+# rownames(bact_pa_10)
+# dim(bact_pa_10)
+# bact_cleaned <- bac_count.no0[rownames(bact_pa_10),]
+# dim(bact_cleaned)
+# 
+# rownames(bact_cleaned) %in% rownames(filt_bact)
+
 bact <- filt_bact
 dim(bact)
 colnames(bact)
-
-
 
 #remove sample ID at beginning
 colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
@@ -925,10 +904,10 @@ sum(is.na(phage_keep))
 dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
 dist_bac<-sqrt(vegdist(bact_keep, method = "bray"))
 
-plot(data.dist, env.dist)
-abline(lm(env.dist ~ data.dist))
+plot(dist_vir, dist_bac)
+abline(lm(dist_vir ~ dist_bac))
 
-data.mantel <- mantel(data.dist, env.dist, perm=1000)
+data.mantel <- mantel(dist_vir, dist_bac, perm=1000)
 data.mantel
 
 #plot
@@ -946,60 +925,7 @@ abline(v=data.mantel$statistic)
 
 
 
-
 #### MANTEL FOR CYANO ####
-bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
-cyano_taxa_ps <- tax_table(cyano_taxa)
-rownames(cyano_taxa_ps) <- rownames(cyano_taxa)
-
-#add to phyloseq object
-bact_physeq <- phyloseq(bac_count, cyano_taxa_ps)
-print(bact_physeq)
-
-#rename cols
-colnames(tax_table(bact_physeq)) <- c("Kingdom", "Phylum", "Class",
-                                      "Order", "Family", "Genus", "ASV")
-
-cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
-
-cyano <- cyano_ps %>% otu_table() 
-
-bact <- cyano
-dim(bact)
-colnames(bact)
-
-phage <- ASV_count
-
-#remove sample ID at beginning
-colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
-colnames(phage) <- gsub("_", ".", colnames(phage))
-
-#select cols that match dates
-bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
-dim(bact_keep)
-phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
-dim(phage_keep)
-
-bact_keep <- t(bact_keep)
-phage_keep <- t(phage_keep)
-sum(is.na(phage_keep))
-
-dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
-dist_bac<-sqrt(vegdist(bact_keep, method = "bray"))
-
-plot(dist_vir, dist_bac)
-abline(lm(dist_bac ~ dist_vir))
-
-data.mantel <- mantel(dist_vir, dist_bac, perm=1000)
-data.mantel
-
-
-
-
-
-
-
-
 #filter bact to rm rare
 bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
 cyano_taxa_ps <- tax_table(cyano_taxa)
@@ -1018,7 +944,7 @@ cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
 filt_cyano_ps <- filter_taxa(cyano_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 filt_cyano <- filt_cyano_ps %>% otu_table() 
 
-bact <- filt_cyano
+cyno <- filt_cyano
 dim(bact)
 colnames(bact)
 
@@ -1027,7 +953,7 @@ colnames(bact)
 # colnames(phage) <- gsub("_", ".", colnames(phage))
 
 #select cols that match dates
-bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
+cyano_keep <- bact[,(colnames(cyno) %in% colnames(phage))]
 dim(bact_keep)
 phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
 dim(phage_keep)
@@ -1037,12 +963,12 @@ phage_keep <- t(phage_keep)
 sum(is.na(phage_keep))
 
 dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
-dist_bac<-sqrt(vegdist(bact_keep, method = "bray"))
+dist_cyano<-sqrt(vegdist(bact_keep, method = "bray"))
 
-plot(dist_vir, dist_bac)
-abline(lm(dist_bac ~ dist_vir))
+plot(dist_vir, dist_cyano)
+abline(lm(dist_vir ~ dist_cyano))
 
-data.mantel <- mantel(dist_vir, dist_bac, perm=1000)
+data.mantel <- mantel(dist_vir, dist_cyano, perm=1000)
 data.mantel
 
 data.dist <- vegdist(wisconsin(sqrt(phage_keep)), "bray")
