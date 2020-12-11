@@ -948,38 +948,68 @@ abline(v=cyano.mantel$statistic)
 ##### Procrustes #####
 #https://john-quensen.com/tutorials/procrustes-analysis/
 
-dim(vir_helli_filt)
-dim(bact_helli_filt)
+# dim(vir_helli_filt)
+# dim(bact_helli_filt)
+# 
+# #remove sample ID at beginning
+# colnames(vir_helli_filt) <- sub("*._*._*._*._*._*._*._","", colnames(vir_helli_filt))
+# colnames(vir_helli_filt) <- gsub("_", ".", colnames(vir_helli_filt))
+# 
+# vir_helli_filt_keep <- vir_helli_filt[,(colnames(vir_helli_filt) %in% colnames(bact_helli_filt))]
+# dim(vir_helli_filt_keep)
+# 
+# t.v <- t(vir_helli_filt_keep)
+# t.b <- t(bact_helli_filt)
+# 
+# pca.phage <- rda(t.v)
+# plot(pca.phage, 
+#      scaling = 1, 
+#      #display="sites", 
+#      #type="text", 
+#      main="PCA for phage")
+# 
+# pca.bact <- rda(t.b)
+# plot(pca.bact,
+#      scaling=1,
+#      main="PCA for bacteria")
+# 
+# procrF <- procrustes(pca.bact, pca.phage, symmetric = F) #put pca for env data first because sp data is being fit to the env data. ie. the target matrix. logical that sp depend on the env, not the other way around
+# procrF
+# 
+# procr <- procrustes(X = pca.phage, Y = pca.bact, symmetric = T)
+# procr
+# 
+# 
+# 
+# plot(procr, kind=1)
+# plot(procr, kind=2)
+# 
+# protest(pca.phage, pca.bact, permutations = 1000)
+# 
+# 
+# 
+# # procrust for cyano
+# bactps_helli
+# cyano_helli_ps <- subset_taxa(bactps_helli, Phylum == "p__Cyanobacteria")
+# cyano_helli <- cyano_helli_ps %>% otu_table
+# (cyano_helli_filt = filter_taxa(bact_helli, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE))
+# dim(cyano_helli_filt)
+# 
+# t.c <- t(cyano_helli_filt)
+# pca.cyano <- rda(t.c)
+# plot(pca.cyano,
+#      scaling=1,
+#      main="PCA for cyano")
+# 
+# procrF_cyano <- procrustes(pca.cyano, pca.phage, symmetric = F) #put pca for env data first because sp data is being fit to the env data. ie. the target matrix. logical that sp depend on the env, not the other way around
+# procrF_cyano
+# 
+# procr_cyano <- procrustes(X = pca.phage, Y = pca.cyano, symmetric = T)
+# procr_cyano
 
-#remove sample ID at beginning
-colnames(vir_helli_filt) <- sub("*._*._*._*._*._*._*._","", colnames(vir_helli_filt))
-colnames(vir_helli_filt) <- gsub("_", ".", colnames(vir_helli_filt))
 
-vir_helli_filt_keep <- vir_helli_filt[,(colnames(vir_helli_filt) %in% colnames(bact_helli_filt))]
-dim(vir_helli_filt_keep)
-
-t.v <- t(vir_helli_filt_keep)
-t.b <- t(bact_helli_filt)
-
-pca.phage <- rda(t.v)
-plot(pca.phage, 
-     scaling = 1, 
-     #display="sites", 
-     #type="text", 
-     main="PCA for phage")
-
-pca.bact <- rda(t.b)
-plot(pca.bact,
-     scaling=1,
-     main="PCA for bacteria")
-
-procr <- procrustes(X = pca.phage, Y = pca.bact, symmetric = T)
-procr
-
-plot(procr, kind=1)
-plot(procr, kind=2)
-
-protest(pca.phage, pca.bact, permutations = 1000)
+protest(dist_vir,dist_cyano)
+protest(dist_vir,dist_bac)
 
 
 
