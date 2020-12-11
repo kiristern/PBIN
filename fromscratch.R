@@ -58,6 +58,8 @@ head(mock_taxa)
 viral_physeq <- phyloseq(count_phy, sample_info, virTree, mock_taxa)
 viral_physeq %>% otu_table( ) %>% dim
 
+vir_abun <- viral_physeq %>% otu_table()
+
 #check data
 print(viral_physeq)
 
@@ -96,7 +98,17 @@ nrow(condrare_viralL$otherRare)
 ######## NON RARE ANALYSIS ###########
 library(microbiome)
 virps_helli <- transform(viral_physeq, transform = "hellinger", target = "OTU")
-otutab <- virps_helli %>% otu_table()
+vir_helli <- virps_helli %>% otu_table()
+length(which(vir_helli != 0))
+
+vir_pa <- viral_physeq %>% otu_table() %>% decostand("pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
+vir_pa_10 <- vir_abun[(rowSums(vir_pa)/ncol(vir_pa) >= 0.10),] #select only asv present in more than 10% of samples
+vir_helli_filt <- vir_helli[rownames(vir_pa_10),] #select asvs present in more than 10% of samples from helli transformed
+dim(vir_helli_filt)
+
+
+
+
 
 library(vegan)
 #the sum of an OTU across all samples is greater than 0.005% of all OTUs 
@@ -840,29 +852,17 @@ vir.rda <- rda(formula=gen.imp ~ Months + Years + Site + Period + bloom2 +
 # https://www.flutterbys.com.au/stats/tut/tut15.2.html
 ## Need to run fromscrach_cyano.R
 
-count_phy2 <- otu_table(ASV_count, taxa_are_rows=T)
-#add to phyloseq object
-ASVps <- phyloseq(count_phy2)
-dim(ASVps)
-#remove taxa not seen more than 1 times in at least 10% of the samples. This protects against ASV with small mean & trivially large coef of var
-filt_asvseq <- filter_taxa(ASVps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
-filt_asvseq %>% otu_table() %>% dim
-filt_vir <- filt_asvseq %>% otu_table()
 
 ### RM RARE ####
-phage <- vir_cleaned
 phage <- filt_vir
 dim(phage)
 colnames(phage)
 
 #filter bact to rm rare
-bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
-bact_physeq <- phyloseq(bac_count) #add to phyloseq object
 print(bact_physeq)
 filt_bact <- filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
-dim(filt_bact)
 
-bact <- filt_bact
+bact <- filt_bact %>% otu_table()
 dim(bact)
 colnames(bact)
 
@@ -872,27 +872,29 @@ colnames(phage) <- gsub("_", ".", colnames(phage))
 
 
 #select cols that match dates
-bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
-dim(bact_keep)
+# bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
+# dim(bact_keep)
 phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
 dim(phage_keep)
 
-bact_keep <- t(bact_keep)
-phage_keep <- t(phage_keep)
-sum(is.na(phage_keep))
+tbact_keep <- t(bact)
+tphage_keep <- t(phage_keep)
+sum(is.na(tphage_keep))
  
-dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
-dist_bac<-sqrt(vegdist(bact_keep, method = "bray"))
+dist_vir<-sqrt(vegdist(tphage_keep, method = "bray"))
+dist_bac<-sqrt(vegdist(tbact_keep, method = "bray"))
 
 plot(dist_vir, dist_bac)
 abline(lm(dist_vir ~ dist_bac))
 
-data.mantel <- mantel(dist_vir, dist_bac, perm=1000)
-data.mantel
+bact.mantel <- mantel(dist_vir, dist_bac, perm=1000)
+bact.mantel
+
 
 #plot
-hist(data.mantel$perm)
-abline(v=data.mantel$statistic)
+hist(bact.mantel$perm)
+abline(v=bact.mantel$statistic)
+
 
 # #generate correlogram (multivariate correlation plot)
 # plot(data.dist, env.dist, type="n")
@@ -906,59 +908,37 @@ abline(v=data.mantel$statistic)
 
 
 #### MANTEL FOR CYANO ####
-#filter bact to rm rare
-bac_count <- otu_table(cyano_counts, taxa_are_rows = T)
-cyano_taxa_ps <- tax_table(cyano_taxa)
-rownames(cyano_taxa_ps) <- rownames(cyano_taxa)
-
-#add to phyloseq object
-bact_physeq <- phyloseq(bac_count, cyano_taxa_ps)
 print(bact_physeq)
-
-#rename cols
-colnames(tax_table(bact_physeq)) <- c("Kingdom", "Phylum", "Class",
-                                      "Order", "Family", "Genus", "ASV")
-
 cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
 
 filt_cyano_ps <- filter_taxa(cyano_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 filt_cyano <- filt_cyano_ps %>% otu_table() 
 
 cyno <- filt_cyano
-dim(bact)
-colnames(bact)
+dim(cyno)
 
-# #remove sample ID at beginning
-# colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
-# colnames(phage) <- gsub("_", ".", colnames(phage))
 
-#select cols that match dates
-cyano_keep <- bact[,(colnames(cyno) %in% colnames(phage))]
-dim(bact_keep)
-phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
-dim(phage_keep)
+# #select cols that match dates
+# cyano_keep <- cyno[,(colnames(cyno) %in% colnames(phage))]
+# dim(cyano_keep)
 
-bact_keep <- t(bact_keep)
-phage_keep <- t(phage_keep)
-sum(is.na(phage_keep))
+tcyano_keep <- t(cyno)
 
-dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
-dist_cyano<-sqrt(vegdist(bact_keep, method = "bray"))
+dim(tphage_keep)
+dim(tcyano_keep)
+
+# dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
+dist_cyano<-sqrt(vegdist(tcyano_keep, method = "bray"))
 
 plot(dist_vir, dist_cyano)
 abline(lm(dist_vir ~ dist_cyano))
 
-data.mantel <- mantel(dist_vir, dist_cyano, perm=1000)
-data.mantel
-
-data.dist <- vegdist(wisconsin(sqrt(phage_keep)), "bray")
-env.dist <- vegdist(wisconsin(sqrt(bact_keep)),"bray")
-data.mantel2 <- mantel(data.dist, env.dist, perm=1000)
-data.mantel2
+cyano.mantel <- mantel(dist_vir, dist_cyano, perm=1000)
+cyano.mantel
 
 #plot
-hist(data.mantel$perm)
-abline(v=data.mantel$statistic)
+hist(cyano.mantel$perm)
+abline(v=cyano.mantel$statistic)
 
 
 
@@ -968,16 +948,27 @@ abline(v=data.mantel$statistic)
 ##### Procrustes #####
 #https://john-quensen.com/tutorials/procrustes-analysis/
 
-phage_keep_helli <- decostand(phage_keep, "hellinger")
-bact_keep_helli <- decostand(bact_keep, "hellinger")
+dim(vir_helli_filt)
+dim(bact_helli_filt)
 
-pca.phage <- rda(phage_keep_helli)
+#remove sample ID at beginning
+colnames(vir_helli_filt) <- sub("*._*._*._*._*._*._*._","", colnames(vir_helli_filt))
+colnames(vir_helli_filt) <- gsub("_", ".", colnames(vir_helli_filt))
+
+vir_helli_filt_keep <- vir_helli_filt[,(colnames(vir_helli_filt) %in% colnames(bact_helli_filt))]
+dim(vir_helli_filt_keep)
+
+t.v <- t(vir_helli_filt_keep)
+t.b <- t(bact_helli_filt)
+
+pca.phage <- rda(t.v)
 plot(pca.phage, 
      scaling = 1, 
      #display="sites", 
      #type="text", 
      main="PCA for phage")
-pca.bact <- rda(bact_keep_helli)
+
+pca.bact <- rda(t.b)
 plot(pca.bact,
      scaling=1,
      main="PCA for bacteria")
