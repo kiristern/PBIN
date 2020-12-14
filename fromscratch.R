@@ -1013,72 +1013,6 @@ protest(dist_vir,dist_bac)
 
 
 
-#####  GLMM #####
-#https://bbolker.github.io/mixedmodels-misc/ecostats_chap.html
-pkgs_CRAN <- c("lme4","MCMCglmm","blme",
-               "pbkrtest","coda","aods3","bbmle","ggplot2",
-               "reshape2","plyr","numDeriv","Hmisc",
-               "plotMCMC","gridExtra","R2admb",
-               "broom.mixed","dotwhisker")
-install.packages(pkgs_CRAN)
-rr <- "http://www.math.mcmaster.ca/bolker/R"
-install.packages("glmmADMB",type="source",repos=rr)
-library("devtools")
-
-## primary GLMM-fitting packages:
-library("lme4")
-library("glmmADMB")      ## (not on CRAN)
-library("glmmTMB")
-library("MCMCglmm")
-library("blme")
-library("MASS")          ## for glmmPQL (base R)
-library("nlme")          ## for intervals(), tundra example (base R)
-## auxiliary
-library("ggplot2")       ## for pretty plots generally
-## ggplot customization:
-theme_set(theme_bw())
-scale_colour_discrete <- function(...,palette="Set1") {
-  scale_colour_brewer(...,palette=palette)
-}
-scale_colour_orig <- ggplot2::scale_colour_discrete
-scale_fill_discrete <- function(...,palette="Set1") {
-  scale_fill_brewer(...,palette=palette)
-}
-## to squash facets together ...
-zmargin <- theme(panel.spacing=grid::unit(0,"lines"))
-library("gridExtra")     ## for grid.arrange()
-library("broom.mixed")
-## n.b. as of 25 Sep 2018, need bbolker github version of dotwhisker ...
-library("dotwhisker")
-library("coda")      ## MCMC diagnostics
-library("aods3")     ## overdispersion diagnostics
-library("plotMCMC") ## pretty plots from MCMC fits  
-library("bbmle")     ## AICtab
-library("pbkrtest")  ## parametric bootstrap
-library("Hmisc")
-## for general-purpose reshaping and data manipulation:
-library("reshape2")
-library("plyr")
-## for illustrating effects of observation-level variance in binary data:
-library("numDeriv")
-library("glmmADMB")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1237,47 +1171,23 @@ library("plyr") # for the "arrange" function
 library("rfUtilities") # to test model significance
 library("caret") # to get leave-one-out cross-validation accuracies and also contains the nearZeroVar function 
 
-rf_samp <- ASV_count
+vir.helli.filt <- vir_helli_filt
+dim(vir.helli.filt)
+m.helli.filt <- micro_ps_helli_filt %>% otu_table()
+dim(m.helli.filt)
+d.helli.filt <- doli_ps_helli_filt %>% otu_table()
+dim(d.helli.filt)
+c.helli.filt <- cyano_ps_helli_filt %>% otu_table()
+dim(c.helli.filt)
 
-#upload cyano ASV data
-cyano_counts <- read.table("cyano/Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
-colnames(cyano_counts)
-bact_meta <- cyano_counts[1:135] #select only first 135 cols
-# duplicated(colnames(rf_meta)) #check if there are duplicates
-colnames(bact_meta) <- substring(colnames(bact_meta), 2) #remove X at beginning of the date
 
 
-### ENSURE SAME SAMPLES FOR BOTH BACTERIAL AND CYANO
-#match sample dates
-sampID <- colnames(rf_samp)
-#remove sample ID at beginning
-sampID_date <- sub("*._*._*._*._*._*._*._","", sampID)
-#change "_" to "."
-(sampDate <- gsub("_", ".", sampID_date))
-
+### ENSURE SAME SAMPLES FOR BOTH BACTERIAL AND VIRAL
 # ie. select cols that match dates
-library(tidyverse)
-resp_var <- bact_meta[(colnames(bact_meta) %in% sampDate),]
-
-colnames(rf_samp)[colnames(rf_samp) == "FLD0295_15_05_2011_1"] <- "FLD0295_15_05_2011_2" #dates were duplicated therefore need to correct
-colnames(rf_samp) <- sub("*._*._*._*._*._*._*._","", colnames(rf_samp)) #remove everything before 1st _ (just to keep date)
-colnames(rf_samp) <- gsub("_", ".", colnames(rf_samp)) #change _ to .
-
-length(resp_var)
-length(rf_samp)
-
-pred_var <- rf_samp[,(colnames(rf_samp) %in% colnames(resp_var))]
-colnames(pred_var)
-colnames(resp_var)
-
-colnames(pred_var) %in% colnames(resp_var)
-length(pred_var)
-length(resp_var)
-colnames(resp_var) %in% colnames(pred_var)
-resp_var <- resp_var[,(colnames(resp_var) %in% colnames(pred_var))]
-
-length(pred_var)
-length(resp_var)
+pred_var <- vir.helli.filt[,(colnames(vir.helli.filt) %in% colnames(m.helli.filt))]
+dim(pred_var)
+resp_var <- m.helli.filt[,colnames(m.helli.filt) %in% colnames(pred_var)]
+dim(resp_var)
 
 pred_var
 resp_var
@@ -1292,61 +1202,16 @@ ps_response <- sample_data(resp_var_transposed)
 #make phyloseq object
 RF_ps <- merge_phyloseq(ps_predict, ps_response)
 
-#hellinger transform species dataset: gives low weight to rare species
-RF_ps_helli <- transform(RF_ps, transform = "hellinger", target = "OTU")
-RF_ps_helli %>% otu_table() %>% head
-
-# filtered such that only OTUs with a sum greater than 10^-5 in at least 10% of samples are kept 
-(RF_ps_helli_filt = filter_taxa(RF_ps_helli, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE))
-
 #make a df of training data with OTUs as cols and samples as rows
-predictors <- as.data.frame(t(otu_table(RF_ps_helli_filt)))
+predictors <- as.data.frame(t(otu_table(RF_ps)))
 dim(predictors)
-
-# Make one col for outcome/response variable
-# response <- as.factor(sample_data(RF_ps))
-
-#bacterial phyloseq objects (run fromscratch_cyano.R)
-micro_ps
-#micro_ps %>% tax_table()
-doli_ps
-cyano_ps
-
 
 
 #make one column for outcome/response variable
-micro_response <- micro_ps %>% otu_table() %>% t()
+micro_response <- RF_ps %>% sample_data() 
 
-# micro_df <- data.frame()
-# for (i in 1:ncol(micro_response)){
-#   micro_df[,i] <- merge(micro_response[,i], predictors, by="row.names")
-# }
 
-# m7 <- merge(micro_response[,1], predictors, by="row.names")
-# rownames(m7) <- m7[,1]
-# m7$Row.names <- NULL
-# names(m7)[1] <- "micro_ASV_7"
-# 
-# m8 <- merge(micro_response[,2], predictors, by="row.names")
-# rownames(m8) <- m8[,1]
-# m8$Row.names <- NULL
-# names(m8)[1] <- "micro_ASV_8"
-# 
-# m143 <- merge(micro_response[,3], predictors, by="row.names")
-# rownames(m143) <- m143[,1]
-# m143$Row.names <- NULL
-# names(m143)[1] <- "micro_ASV_143"
-
-# rownames(micro_response) == rownames(m7)
-# head(rownames(micro_response))
-# head(rownames(m7))
-# 
 micro_response <- micro_response[order(row.names(micro_response)), ]
-# m7 <- m7[order(row.names(m7)),]
-# 
-# m8 <- m8[order(row.names(m8)),]
-# m143 <- m143[order(row.names(m143)),]
-
 
 #put in the same order for rownames
 rownames(predictors) %in% rownames(micro_response)
@@ -1426,17 +1291,18 @@ dim(dataset)
 samp <- createDataPartition(dataset$micro_ASV_143, p = 0.9, list = F)
 head(dataset)[,1:5]
 training <- dataset[samp,]
+head(training[1:5][1:5])
 testing <- dataset[-samp,]
 
-length(dataset)
-x = training[,2:577]
-y = training[,1]
+# length(dataset)
+# x = training[,2:601]
+# y = training[,1]
 
 
 # Random Search
 fitControl <- trainControl(method="repeatedcv", 
-                           number = 10,
-                           repeats = 10, 
+                           number = 3,
+                           repeats = 3, 
                            search="random",
                            selectionFunction = "oneSE")
 
@@ -1445,7 +1311,7 @@ rf_random <- train(micro_ASV_143~., #predictor data object
                    data=training, #outcome data object
                    method="rf", #specifies type of model: rf = random forest
                    metric="RMSE",
-                   tuneLength=15,
+                   tuneLength=5,
                    trControl = fitControl,
                    importance=T)  
 rf_random$results #if metric isn't specified, will see all results
@@ -1456,16 +1322,17 @@ plot(rf_random)
 plottop20(rf_random)
 rf.rand20<- top20(rf_random)
 rf.rand20
+#write.csv(rf.rand20, "rf_top20_dec13.csv")
 
 #tuneGrid
 #Create control function for training with 10 (number) folds and keep 3 (repeats) folds for training. search method is grid.
 fitControl <- trainControl(method="repeatedcv", 
-                           number = 10,
-                           repeats = 10, 
+                           number = 3,
+                           repeats = 3, 
                            search="grid")
 
 #create tunegrid with 10 values from 55:65 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid. 
-tunegrid <- expand.grid(.mtry = (55:75)) 
+tunegrid <- expand.grid(.mtry = (400:600)) 
 
 rf_grid <- train(micro_ASV_143~., #predictor data object
                    data=training, #outcome data object
@@ -1481,7 +1348,7 @@ print(rf_grid)
 # mtry 23 is the optimal
 plot(rf_grid)
 plottop20(rf_grid)
-rf.grid20 <- top20(rf_grid)
+(rf.grid20 <- top20(rf_grid))
 
 
 #tuneRF
@@ -1489,59 +1356,61 @@ bestMtry <- tuneRF(x, y, stepFactor = 1.5, improve = 1e-5, ntree = 500)
 print(bestMtry)
 
 
-#custom tunning with multiple parameters: mtry and ntree
-customRF <- list(type = "Regression",
-                 library = "randomForest",
-                 loop = NULL)
-
-customRF$parameters <- data.frame(parameter = c("mtry", "ntree"),
-                                  class = rep("numeric", 2),
-                                  label = c("mtry", "ntree"))
-
-customRF$grid <- function(x, y, len = NULL, search = "grid") {}
-
-customRF$fit <- function(x, y, wts, param, lev, last, weights, classProbs) {
-  randomForest(x, y,
-               mtry = param$mtry,
-               ntree=param$ntree)
-}
-
-#Predict label
-customRF$predict <- function(modelFit, newdata, preProc = NULL, submodels = NULL)
-  predict(modelFit, newdata)
-
-#Predict prob
-customRF$prob <- function(modelFit, newdata, preProc = NULL, submodels = NULL)
-  predict(modelFit, newdata, type = "prob")
-
-customRF$sort <- function(x) x[order(x[,1]),]
-customRF$levels <- function(x) x$classes
-
-library(doParallel)
-cores <- makeCluster(detectCores()-1)
-registerDoParallel(cores = cores)
-start_time <- Sys.time() #start timer
-
-# train model
-control <- trainControl(method="repeatedcv", 
-                        number=10, 
-                        repeats=3,
-                        allowParallel = TRUE)
-
-tunegrid <- expand.grid(.mtry=c(68:75),.ntree=c(100,500, 1000))
-
-custom <- train(micro_ASV_143~., data=training, 
-                method=customRF, 
-                metric="RMSE", 
-                tuneGrid=tunegrid, 
-                trControl=control)
-
-end_time <- Sys.time() #end timer
-end_time - start_time # Display time
-
-summary(custom)
-plot(custom)
-stopCluster(cores)
+# #custom tunning with multiple parameters: mtry and ntree
+# customRF <- list(type = "Regression",
+#                  library = "randomForest",
+#                  loop = NULL)
+# 
+# customRF$parameters <- data.frame(parameter = c("mtry", "ntree"),
+#                                   class = rep("numeric", 2),
+#                                   label = c("mtry", "ntree"))
+# 
+# customRF$grid <- function(x, y, len = NULL, search = "grid") {}
+# 
+# customRF$fit <- function(x, y, wts, param, lev, last, weights, classProbs) {
+#   randomForest(x, y,
+#                mtry = param$mtry,
+#                ntree=param$ntree)
+# }
+# 
+# #Predict label
+# customRF$predict <- function(modelFit, newdata, preProc = NULL, submodels = NULL){
+#   predict(modelFit, newdata)
+# }
+# 
+# #Predict prob
+# customRF$prob <- function(modelFit, newdata, preProc = NULL, submodels = NULL){
+#   predict(modelFit, newdata, type = "prob")
+# }
+# 
+# customRF$sort <- function(x) x[order(x[,1]),]
+# customRF$levels <- function(x) x$classes
+# 
+# library(doParallel)
+# cores <- makeCluster(detectCores()-1)
+# registerDoParallel(cores = cores)
+# start_time <- Sys.time() #start timer
+# 
+# # train model
+# control <- trainControl(method="repeatedcv", 
+#                         number=5, 
+#                         repeats=3,
+#                         allowParallel = TRUE)
+# 
+# tunegrid <- expand.grid(.mtry=c(55:75),.ntree=c(100,500, 1000))
+# 
+# custom <- train(micro_ASV_143~., data=training, 
+#                 method=customRF, 
+#                 metric="RMSE", 
+#                 tuneGrid=tunegrid, 
+#                 trControl=control)
+# 
+# end_time <- Sys.time() #end timer
+# end_time - start_time # Display time
+# 
+# summary(custom)
+# plot(custom)
+# stopCluster(cores)
 
 
 #RF with selected parameters
@@ -1550,13 +1419,20 @@ caret.rf <- train(micro_ASV_143~.,
                   method="rf",
                   ntree=1000,
                   metric="RMSE",
-                  tuneGrid=data.frame(mtry=71),
+                  tuneGrid=data.frame(mtry=433),
                   importance=T,
-                  trControl=trainControl(method="repeatedcv"))
+                  trControl=trainControl(method="repeatedcv", 
+                                          number = 3,
+                                          repeats = 3))
+
+
 print(caret.rf)
 plottop20(caret.rf)
 (rf20 <- top20(caret.rf))
 
+same <-which(rf20$predictors %in% rf.rand20$predictors)
+  #ASV_712, ASV_172, ASV_147, ASV_431, ASV_500, ASV_497
+(samesame<- rf20$predictors[same])
 
 
 #PLS
