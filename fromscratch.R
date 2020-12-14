@@ -1171,13 +1171,17 @@ library("plyr") # for the "arrange" function
 library("rfUtilities") # to test model significance
 library("caret") # to get leave-one-out cross-validation accuracies and also contains the nearZeroVar function 
 
-vir.helli.filt <- vir_helli_filt
+vir.helli.filt <- as.data.frame(vir_helli_filt)
 dim(vir.helli.filt)
-m.helli.filt <- micro_ps_helli_filt %>% otu_table()
+
+colnames(vir.helli.filt) <- sub("*._*._*._*._*._*._*._","", colnames(vir.helli.filt))
+colnames(vir.helli.filt) <- gsub("_", ".", colnames(vir.helli.filt))
+
+m.helli.filt <- micro_ps_helli_filt %>% otu_table() %>% as.data.frame()
 dim(m.helli.filt)
-d.helli.filt <- doli_ps_helli_filt %>% otu_table()
+d.helli.filt <- doli_ps_helli_filt %>% otu_table() %>% as.data.frame
 dim(d.helli.filt)
-c.helli.filt <- cyano_ps_helli_filt %>% otu_table()
+c.helli.filt <- cyano_ps_helli_filt %>% otu_table() %>% as.data.frame()
 dim(c.helli.filt)
 
 
