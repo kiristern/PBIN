@@ -505,14 +505,15 @@ anova.cca(vir.rda, step=1000) #model
 anova.cca(vir.rda, step=1000, by="axis") #canonical axes
 
 #significant env vars
-env.signif <- subset(env_keep, select = c("Cumulative_precipitation_t1_t7_mm", "doli.sum.helli"))
+env.signif <- subset(env_keep, select = c("Cumulative_precipitation_t1_t7_mm", "doli.sum.helli",
+                                          "Total_Phosphorus_ug", "Dissolved_P", "Dissolved_N"))
 env.signif <- subset(env_keep, select = c("doli.sum.helli"))
 
 #the proportion of variation explained by the three constraining variables being 0.058
 
 rda.signif <- rda(vir.rm~., data=env.signif)
 summary(rda.signif, display=NULL)
-#The explanatory variables (Tot P and Dis P) now explain 5.8% of the variance in Y (species).
+#The explanatory variables now explain 11.67% of the variance in Y (species).
 
 (R2adj <- RsquareAdj(rda.signif)$adj.r.squared)
 #Here the strength of the relationship between X and Y corrected for the number of X variables is 0.0227.
@@ -535,47 +536,47 @@ anova.cca(rda.signif, step=1000, by="axis")
 plot(rda.signif, scaling=1, main="Triplot RDA (scaling 1)")
 plot(rda.signif, scaling=2, main="Triplot RDA (scaling 2)")
 
-#Advanced plots scaling 1
-plot(rda.signif, scaling=1, main="Triplot RDA - scaling 1", type="none", xlab=c("RDA1"), ylab=c("RDA2"), xlim=c(-1,1), ylim=c(-1,1))
-points(scores(rda.signif, display="sites", choices=c(1,2), scaling=1),
-       pch=21, col="black", bg="steelblue", cex=1.2)
-arrows(0,0,
-       scores(rda.signif, display="species", choices=c(1), scaling=1),
-       scores(rda.signif, display="species", choices=c(2), scaling=1),
-       col="black",length=0)
-text(scores(rda.signif, display="species", choices=c(1), scaling=1),
-     scores(rda.signif, display="species", choices=c(2), scaling=1),
-     labels=rownames(scores(rda.signif, display="species", scaling=1)),
-     col="black", cex=0.8)    
-arrows(0,0,
-       scores(rda.signif, display="bp", choices=c(1), scaling=1),
-       scores(rda.signif, display="bp", choices=c(2), scaling=1),
-       col="red")
-text(scores(rda.signif, display="bp", choices=c(1), scaling=1)+0.05,
-     scores(rda.signif, display="bp", choices=c(2), scaling=1)+0.05,
-     labels=rownames(scores(rda.signif, display="bp", choices=c(2), scaling=1)),
-     col="red", cex=1) 
-
-#Advanced plots scaling 2
-plot(rda.signif, scaling=2, main="Triplot RDA - scaling 2", type="none", xlab=c("RDA1"), ylab=c("RDA2"), xlim=c(-1,1), ylim=c(-1,1))
-points(scores(rda.signif, display="sites", choices=c(1,2), scaling=2),
-       pch=20, col="steelblue", cex=1.2)
-arrows(0,0,
-       scores(rda.signif, display="species", choices=c(1), scaling=2)*2,
-       scores(rda.signif, display="species", choices=c(2), scaling=2)*2,
-       col="black",length=0)
-text(scores(rda.signif, display="species", choices=c(1), scaling=2)*2.1,
-     scores(rda.signif, display="species", choices=c(2), scaling=2)*2.1,
-     labels=rownames(scores(rda.signif, display="species", scaling=2)),
-     col="black", cex=0.8)    
-arrows(0,0,
-       scores(rda.signif, display="bp", choices=c(1), scaling=2),
-       scores(rda.signif, display="bp", choices=c(2), scaling=2),
-       col="red")
-text(scores(rda.signif, display="bp", choices=c(1), scaling=2)+0.05,
-     scores(rda.signif, display="bp", choices=c(2), scaling=2)+0.05,
-     labels=rownames(scores(rda.signif, display="bp", choices=c(2), scaling=2)),
-     col="red", cex=1)
+# #Advanced plots scaling 1
+# plot(rda.signif, scaling=1, main="Triplot RDA - scaling 1", type="none", xlab=c("RDA1"), ylab=c("RDA2"), xlim=c(-1,1), ylim=c(-1,1))
+# points(scores(rda.signif, display="sites", choices=c(1,2), scaling=1),
+#        pch=21, col="black", bg="steelblue", cex=1.2)
+# arrows(0,0,
+#        scores(rda.signif, display="species", choices=c(1), scaling=1),
+#        scores(rda.signif, display="species", choices=c(2), scaling=1),
+#        col="black",length=0)
+# text(scores(rda.signif, display="species", choices=c(1), scaling=1),
+#      scores(rda.signif, display="species", choices=c(2), scaling=1),
+#      labels=rownames(scores(rda.signif, display="species", scaling=1)),
+#      col="black", cex=0.8)    
+# arrows(0,0,
+#        scores(rda.signif, display="bp", choices=c(1), scaling=1),
+#        scores(rda.signif, display="bp", choices=c(2), scaling=1),
+#        col="red")
+# text(scores(rda.signif, display="bp", choices=c(1), scaling=1)+0.05,
+#      scores(rda.signif, display="bp", choices=c(2), scaling=1)+0.05,
+#      labels=rownames(scores(rda.signif, display="bp", choices=c(2), scaling=1)),
+#      col="red", cex=1) 
+# 
+# #Advanced plots scaling 2
+# plot(rda.signif, scaling=2, main="Triplot RDA - scaling 2", type="none", xlab=c("RDA1"), ylab=c("RDA2"), xlim=c(-1,1), ylim=c(-1,1))
+# points(scores(rda.signif, display="sites", choices=c(1,2), scaling=2),
+#        pch=20, col="steelblue", cex=1.2)
+# arrows(0,0,
+#        scores(rda.signif, display="species", choices=c(1), scaling=2)*2,
+#        scores(rda.signif, display="species", choices=c(2), scaling=2)*2,
+#        col="black",length=0)
+# text(scores(rda.signif, display="species", choices=c(1), scaling=2)*2.1,
+#      scores(rda.signif, display="species", choices=c(2), scaling=2)*2.1,
+#      labels=rownames(scores(rda.signif, display="species", scaling=2)),
+#      col="black", cex=0.8)    
+# arrows(0,0,
+#        scores(rda.signif, display="bp", choices=c(1), scaling=2),
+#        scores(rda.signif, display="bp", choices=c(2), scaling=2),
+#        col="red")
+# text(scores(rda.signif, display="bp", choices=c(1), scaling=2)+0.05,
+#      scores(rda.signif, display="bp", choices=c(2), scaling=2)+0.05,
+#      labels=rownames(scores(rda.signif, display="bp", choices=c(2), scaling=2)),
+#      col="red", cex=1)
 
 
 
@@ -946,67 +947,6 @@ abline(v=cyano.mantel$statistic)
 
 
 ##### Procrustes #####
-#https://john-quensen.com/tutorials/procrustes-analysis/
-
-# dim(vir_helli_filt)
-# dim(bact_helli_filt)
-# 
-# #remove sample ID at beginning
-# colnames(vir_helli_filt) <- sub("*._*._*._*._*._*._*._","", colnames(vir_helli_filt))
-# colnames(vir_helli_filt) <- gsub("_", ".", colnames(vir_helli_filt))
-# 
-# vir_helli_filt_keep <- vir_helli_filt[,(colnames(vir_helli_filt) %in% colnames(bact_helli_filt))]
-# dim(vir_helli_filt_keep)
-# 
-# t.v <- t(vir_helli_filt_keep)
-# t.b <- t(bact_helli_filt)
-# 
-# pca.phage <- rda(t.v)
-# plot(pca.phage, 
-#      scaling = 1, 
-#      #display="sites", 
-#      #type="text", 
-#      main="PCA for phage")
-# 
-# pca.bact <- rda(t.b)
-# plot(pca.bact,
-#      scaling=1,
-#      main="PCA for bacteria")
-# 
-# procrF <- procrustes(pca.bact, pca.phage, symmetric = F) #put pca for env data first because sp data is being fit to the env data. ie. the target matrix. logical that sp depend on the env, not the other way around
-# procrF
-# 
-# procr <- procrustes(X = pca.phage, Y = pca.bact, symmetric = T)
-# procr
-# 
-# 
-# 
-# plot(procr, kind=1)
-# plot(procr, kind=2)
-# 
-# protest(pca.phage, pca.bact, permutations = 1000)
-# 
-# 
-# 
-# # procrust for cyano
-# bactps_helli
-# cyano_helli_ps <- subset_taxa(bactps_helli, Phylum == "p__Cyanobacteria")
-# cyano_helli <- cyano_helli_ps %>% otu_table
-# (cyano_helli_filt = filter_taxa(bact_helli, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE))
-# dim(cyano_helli_filt)
-# 
-# t.c <- t(cyano_helli_filt)
-# pca.cyano <- rda(t.c)
-# plot(pca.cyano,
-#      scaling=1,
-#      main="PCA for cyano")
-# 
-# procrF_cyano <- procrustes(pca.cyano, pca.phage, symmetric = F) #put pca for env data first because sp data is being fit to the env data. ie. the target matrix. logical that sp depend on the env, not the other way around
-# procrF_cyano
-# 
-# procr_cyano <- procrustes(X = pca.phage, Y = pca.cyano, symmetric = T)
-# procr_cyano
-
 
 protest(dist_vir,dist_cyano)
 protest(dist_vir,dist_bac)
@@ -1020,106 +960,136 @@ protest(dist_vir,dist_bac)
 
 ##### MRT #####
 library(mvpart)
-library(plyr)
 
-sp.asv.rm
-colnames(env_keep)
+vir_helli 
+names(env)
+
+#remove catagorical data from env (do RDA without sites and time -- see PERMANOVA (far) below)
+str(env)
+
+env_vars <- env[,!(colnames(env) %in% c("description", "Date", "Microcystin", "Cyano.Abundance", "Micro.Abundance", "Dolicho.Abundance"))]
+colnames(env_vars)
+
+#rm NAs
+env_keep <- env_vars[complete.cases(env_vars), ]
+env_keep %>% dplyr::glimpse() 
+summary(env_keep)
+
+#### Remove viral asvs that are not present (due to removal of NA from env vars)
+sp.asv <- t(vir_helli)
+
+#rm sample rows that are not present in env_keep
+vir.rm <- sp.asv[rownames(sp.asv) %in% rownames(env_keep),]
+dim(vir.rm)
+
+
+# species and enviro data without NAs needed for RDA
+head(vir.rm)
+head(env_keep)
 
 #use all data to identify which group accurately predicts 
-mrt <- mvpart(data.matrix(sp.asv.rm) ~ ., env_keep, xv = "pick", xvmult=1000)
+mrt <- mvpart(as.matrix(vir.rm) ~ ., env_keep, 
+              legend=F,
+              margin=0.01,
+              cp=0,
+              xv = "pick", 
+              xval=nrow(vir.rm),
+              xvmult=100,
+              which = 4)
 
-mrt_month <- mvpart(sp.asv.rm~ Months, env_keep,
+
+mrt_month <- mvpart(vir.rm~ Months, env_keep,
                      legend=T, margin=0.01, cp=0, xv="pick",
-                     xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.923
+                     xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.975
 
-mrt_year <- mvpart(as.matrix(sp.asv.rm)~ Years, env_keep,
+mrt_year <- mvpart(as.matrix(vir.rm)~ Years, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.825
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.962
 
-mrt_site <- mvpart(as.matrix(sp.asv.rm)~ Site, env_keep,
+mrt_site <- mvpart(as.matrix(vir.rm)~ Site, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-#error = 0.991
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+#error = 0.98
 
 
-mrt_period <- mvpart(as.matrix(sp.asv.rm)~ Period, env_keep,
+mrt_period <- mvpart(as.matrix(vir.rm)~ Period, env_keep,
                       legend=T, margin=0.01, cp=0, xv="pick",
-                      xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-#error = 0.943
+                      xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+#error = 0.976
 
 
-mrt_bloom <- mvpart(as.matrix(sp.asv.rm)~ bloom2, env_keep,
+mrt_bloom <- mvpart(as.matrix(vir.rm)~ bloom2, env_keep,
                      legend=T, margin=0.01, cp=0, xv="pick",
-                     xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.965
+                     xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.983
 
 
-mrt_totP <- mvpart(as.matrix(sp.asv.rm)~ Total_Phosphorus_ug, env_keep,
+mrt_totP <- mvpart(as.matrix(vir.rm)~ Total_Phosphorus_ug, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.955
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.884
 
 
-mrt_totN <- mvpart(as.matrix(sp.asv.rm)~ Total_Nitrogen_mg, env_keep,
+mrt_totN <- mvpart(as.matrix(vir.rm)~ Total_Nitrogen_mg, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-#error = 0.865
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+#error = 0.958
 
 
-mrt_DisP <- mvpart(as.matrix(sp.asv.rm)~ Dissolved_P, env_keep,
+mrt_DisP <- mvpart(as.matrix(vir.rm)~ Dissolved_P, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.957
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.726
 (DisP_R2 <- RsquareAdj(mrt_DisP)$adj.r.squared)
 rpart.pca(mrt_DisP)
 
-mrt_DisN <- mvpart(as.matrix(sp.asv.rm)~ Dissolved_N, env_keep,
+mrt_DisN <- mvpart(as.matrix(vir.rm)~ Dissolved_N, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.925
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.835
 
 
-mrt_precip <- mvpart(as.matrix(sp.asv.rm)~ Cumulative_precipitation_t1_t7_mm, env_keep,
+mrt_precip <- mvpart(as.matrix(vir.rm)~ Cumulative_precipitation_t1_t7_mm, env_keep,
                       legend=T, margin=0.01, cp=0, xv="pick",
-                      xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.947
+                      xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.889
 
 
-mrt_temp <- mvpart(as.matrix(sp.asv.rm)~ Mean_temperature_t0_t7, env_keep,
+mrt_temp <- mvpart(as.matrix(vir.rm)~ Mean_temperature_t0_t7, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.751
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.962
 
 
-mrt_cyano <- mvpart(as.matrix(sp.asv.rm)~ Cyano.Abundance, env_keep,
+mrt_cyano <- mvpart(as.matrix(vir.rm)~ cyano.sum.helli, env_keep,
                      legend=T, margin=0.01, cp=0, xv="pick",
-                     xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-#error = 0.946
+                     xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+#error = 0.836
 
-mrt_doli <- mvpart(as.matrix(sp.asv.rm)~ Dolicho.Abundance, env_keep,
+mrt_doli <- mvpart(as.matrix(vir.rm)~ doli.sum.helli, env_keep,
                     legend=T, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-# error = 0.923
+                    xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+# error = 0.937
 
-
-mrt_micro <- mvpart(as.matrix(sp.asv.rm)~ Micro.Abundance, env_keep,
+mrt_micro <- mvpart(as.matrix(vir.rm)~ micro.sum.helli, env_keep,
                      legend=T, margin=0.01, cp=0, xv="pick",
-                     xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
-#error = 0.916
+                     xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
+#error = 0.947
 
 
 #significant vars based off of MRT scores
-mrt_signif <- mvpart(as.matrix(sp.asv.rm) ~ Years+Total_Nitrogen_mg+Mean_temperature_t0_t7, env_keep,
+mrt_signif <- mvpart(as.matrix(vir.rm) ~ cyano.sum.helli+Cumulative_precipitation_t1_t7_mm+Dissolved_N+Dissolved_P+Total_Phosphorus_ug, 
+                     env_keep,
                      legend=T, margin=0.01, cp=0, xv="pick",
-                     xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
+                     xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
 
 # significant vars based off of ordi2step
 signif_env
-mrt_ordi <- mvpart(as.matrix(sp.asv.rm) ~ Years+Months+Dissolved_N+Period+Dissolved_P, signif_env,
+mrt_ordi <- mvpart(as.matrix(vir.rm) ~ Years+Months+Dissolved_N+Period+Dissolved_P, signif_env,
                      legend=T, margin=0.01, cp=0, xv="pick",
-                     xval=nrow(sp.asv.rm), xvmult=100, which=4, big.pts=T, bars=F)
+                     xval=nrow(vir.rm), xvmult=100, which=4, big.pts=T, bars=F)
 
 
 
@@ -1227,9 +1197,9 @@ rownames(predictors) == rownames(micro_response)
 
 head(micro_response)
 #make one column for outcome/response variable
-micro_ASV_7 <- as.double(micro_response[,1])
-micro_ASV_8 <- as.double(micro_response[,2])
-micro_ASV_143 <- as.double(micro_response[,3])
+micro_ASV_7 <- micro_response[,1]
+micro_ASV_8 <- micro_response[,2]
+micro_ASV_143 <- micro_response[,3]
 str(micro_ASV_143)
 
 #combine into one df
@@ -1242,9 +1212,9 @@ m143
 head(colnames(m143))
 str(m143)
 
-# names(m7)[1] <- "micro_ASV_7"
-# names(m8)[1] <- "micro_ASV_8"
-# names(m143)[1] <- "micro_ASV_143"
+names(m7)[1] <- "micro_ASV_7"
+names(m8)[1] <- "micro_ASV_8"
+names(m143)[1] <- "micro_ASV_143"
 
 
 # plot 20 most important viral ASV
@@ -1285,8 +1255,6 @@ top20 <- function(RFm){
 
 
 
-library(randomForest)
-library(caret)
 library(e1071)
 
 #tune the algorithm
@@ -1298,9 +1266,9 @@ training <- dataset[samp,]
 head(training[1:5][1:5])
 testing <- dataset[-samp,]
 
-# length(dataset)
-# x = training[,2:601]
-# y = training[,1]
+length(dataset)
+x = training[,2:601]
+y = training[,1]
 
 
 # Random Search
@@ -1321,12 +1289,12 @@ rf_random <- train(micro_ASV_143~., #predictor data object
 rf_random$results #if metric isn't specified, will see all results
 print(rf_random)
 # RMSE was used to select the optimal model using  the one SE rule.
-# The final value used for the model was mtry = 59
+# The final value used for the model was mtry = 7
 plot(rf_random)
 plottop20(rf_random)
 rf.rand20<- top20(rf_random)
 rf.rand20
-#write.csv(rf.rand20, "rf_top20_dec13.csv")
+#write.csv(rf.rand20, "m143_rf_rand_top20_dec15.csv")
 
 #tuneGrid
 #Create control function for training with 10 (number) folds and keep 3 (repeats) folds for training. search method is grid.
@@ -1335,8 +1303,8 @@ fitControl <- trainControl(method="repeatedcv",
                            repeats = 3, 
                            search="grid")
 
-#create tunegrid with 10 values from 55:65 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid. 
-tunegrid <- expand.grid(.mtry = (400:600)) 
+#create tunegrid with 10 values from 1:50 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid. 
+tunegrid <- expand.grid(.mtry = (1:50)) 
 
 rf_grid <- train(micro_ASV_143~., #predictor data object
                    data=training, #outcome data object
@@ -1349,10 +1317,11 @@ rf_grid <- train(micro_ASV_143~., #predictor data object
 # savePredictions="all")
 rf_grid$results
 print(rf_grid)
-# mtry 23 is the optimal
+# mtry 29 is the optimal
 plot(rf_grid)
 plottop20(rf_grid)
 (rf.grid20 <- top20(rf_grid))
+#write.csv(rf.grid20, "m143_rf_grid_top20_dec15.csv")
 
 
 #tuneRF
@@ -1360,61 +1329,6 @@ bestMtry <- tuneRF(x, y, stepFactor = 1.5, improve = 1e-5, ntree = 500)
 print(bestMtry)
 
 
-# #custom tunning with multiple parameters: mtry and ntree
-# customRF <- list(type = "Regression",
-#                  library = "randomForest",
-#                  loop = NULL)
-# 
-# customRF$parameters <- data.frame(parameter = c("mtry", "ntree"),
-#                                   class = rep("numeric", 2),
-#                                   label = c("mtry", "ntree"))
-# 
-# customRF$grid <- function(x, y, len = NULL, search = "grid") {}
-# 
-# customRF$fit <- function(x, y, wts, param, lev, last, weights, classProbs) {
-#   randomForest(x, y,
-#                mtry = param$mtry,
-#                ntree=param$ntree)
-# }
-# 
-# #Predict label
-# customRF$predict <- function(modelFit, newdata, preProc = NULL, submodels = NULL){
-#   predict(modelFit, newdata)
-# }
-# 
-# #Predict prob
-# customRF$prob <- function(modelFit, newdata, preProc = NULL, submodels = NULL){
-#   predict(modelFit, newdata, type = "prob")
-# }
-# 
-# customRF$sort <- function(x) x[order(x[,1]),]
-# customRF$levels <- function(x) x$classes
-# 
-# library(doParallel)
-# cores <- makeCluster(detectCores()-1)
-# registerDoParallel(cores = cores)
-# start_time <- Sys.time() #start timer
-# 
-# # train model
-# control <- trainControl(method="repeatedcv", 
-#                         number=5, 
-#                         repeats=3,
-#                         allowParallel = TRUE)
-# 
-# tunegrid <- expand.grid(.mtry=c(55:75),.ntree=c(100,500, 1000))
-# 
-# custom <- train(micro_ASV_143~., data=training, 
-#                 method=customRF, 
-#                 metric="RMSE", 
-#                 tuneGrid=tunegrid, 
-#                 trControl=control)
-# 
-# end_time <- Sys.time() #end timer
-# end_time - start_time # Display time
-# 
-# summary(custom)
-# plot(custom)
-# stopCluster(cores)
 
 
 #RF with selected parameters
@@ -1423,20 +1337,17 @@ caret.rf <- train(micro_ASV_143~.,
                   method="rf",
                   ntree=1000,
                   metric="RMSE",
-                  tuneGrid=data.frame(mtry=433),
+                  tuneGrid=data.frame(mtry=29),
                   importance=T,
                   trControl=trainControl(method="repeatedcv", 
                                           number = 3,
                                           repeats = 3))
 
-
 print(caret.rf)
 plottop20(caret.rf)
 (rf20 <- top20(caret.rf))
+#write.csv(rf20, "m143_rf_dec15.csv")
 
-same <-which(rf20$predictors %in% rf.rand20$predictors)
-  #ASV_712, ASV_172, ASV_147, ASV_431, ASV_500, ASV_497
-(samesame<- rf20$predictors[same])
 
 
 #PLS
@@ -1445,160 +1356,69 @@ pls.mod <- train(micro_ASV_143~.,
                  method="pls",
                  scale=T,
                  trControl=trainControl("repeatedcv", 
-                                        number=10,
-                                        repeats = 10,
+                                        number= 3,
+                                        repeats = 3,
                                         selectionFunction = "oneSE"),
+                 preProc = c("zv", "center", "scale"),
                  importance=T,
-                 tuneLength=15
-  
-)
+                 tuneLength=5)
 plot(pls.mod)
 print(pls.mod)
 pls.mod$bestTune
-top20(pls.mod)
+(pls20 <- top20(pls.mod))
 plottop20(pls.mod)
 summary(pls.mod$finalModel)
 
-# #random search in a specified grid:
-# control <- trainControl("repeatedcv", 
-#                         repeats = 10,
-#                         number = 10,
-#                         selectionFunction = "oneSE",
-#                         search="grid")
-# ncompf <- min(0.75*nrow(training) - 1, 0.75*nrow(training))
-# grid <- expand.grid(ncomp=seq(0,ncompf,1))
-# samp <- sample(1:nrow(grid), 45)
-# ncompT <- data.frame(.ncomp = sort(c(samp)))
-# fit.pls <- train(micro_ASV_143 ~. , 
-#                  data=training, 
-#                  method="pls", 
-#                  metric="RMSE", 
-#                  tuneGrid=ncompT, 
-#                  tuneLength = 20,
-#                  returnResamp = "all",
-#                  savePredictions = "all",
-#                  trControl=control,
-#                  importance=T)
-# plot(fit.pls)
-# fit.pls$bestTune
-# #plot(varImp(fit.pls), 20, main = "PLS")
-# plottop20(fit.pls)
-# (pls20 <- top20(fit.pls))
-
-
-
-#svmLinear
-svmlinear <- train(micro_ASV_143~.,
-                   data=training,
-                   method="svmLinear",
-                   trControl=trainControl(method = "repeatedcv",
-                                          number = 10,
-                                          repeats=10),
-                   tuneGrid = expand.grid(C = seq(0,2, length=15)),
-                   importnace=T)
-print(svmlinear)
-svmlinear$bestTune
-plot(svmlinear)
-top20(svmlinear)
-plottop20(svmlinear)
-
-#Create control function for training with 10 (number) folds and keep 3 (repeats) folds for training. search method is grid.
-fitControl <- trainControl(method="repeatedcv",
-                           number = 10,
-                           repeats = 10,
-                           selectionFunction = "oneSE",
-                           search="grid")
-grid <- expand.grid(C = seq(0,ncompf,1))
-svmlin <- train(micro_ASV_143~., #predictor data object
-                  data=training, #outcome data object
-                  method="svmLinear", #specifies type of model: rf = random forest
-                  tuneLength=10,
-                  tuneGrid=grid,
-                  importance=T,
-                  returnResamp="all",
-                  savePredictions="all",
-                  trControl = fitControl)
-svmlin$results
-print(svmlin)
-plot(svmlin)
-plottop20(svmlin)
-svmlin20 <- top20(svmlin)
-# Print the best tuning parameter C that maximizes model accuracy
-svmlin$bestTune
-
-
-
-#svmRadial
-#Create control function for training with 10 (number) folds and keep 3 (repeats) folds for training. search method is grid.
-fitControl <- trainControl(method="repeatedcv",
-                           number = 10,
-                           repeats = 3,
-                           savePred=T, 
-                           classProb=T)
-
-svmrad <- train(micro_ASV_143~., #predictor data object
-                data=training, #outcome data object
-                method="svmRadial", #specifies type of model: rf = random forest
-                trControl = fitControl,
-                preProcess = c("center", "scale"),
-                tuneLength=10,
-                importance=T)#,
-# returnResamp="all",
-# savePredictions="all")
-svmrad$results
-print(svmrad)
-# C = 16 is the optimal
-plot(svmrad)
-plottop20(svmrad)
-svmrad20 <- top20(svmrad)
-# Print the best tuning parameter C that maximizes model accuracy
-svmrad$bestTune
-
+same <- which(pls20$predictors %in% rf20$predictors)
+(samesame <- as.data.frame(pls20$predictors[same]))
+write.csv(samesame, "m143_samesame_rf_pls_dec15.csv")
 
 
 
 #knn
 fitControl <- trainControl(method="repeatedcv",
-                           number = 10,
-                           repeats = 3,
-                           savePred=T, 
-                           classProb=T)
+                           number = 3,
+                           repeats = 3)
 
 KNN <- train(micro_ASV_143~., #predictor data object
                 data=training, #outcome data object
                 method="knn", #specifies type of model: rf = random forest
                 trControl = fitControl,
-                preProcess = c("center", "scale"),
-                tuneLength=10,
-                importance=T)#,
-# returnResamp="all",
-# savePredictions="all")
+                tuneLength=20,
+                importance=T)
 KNN$results
 print(KNN)
-# K = 5 is the optimal
+KNN$bestTune # K = 11 is the optimal
 plot(KNN)
 plottop20(KNN)
 knn20 <- top20(KNN)
-# Print the best tuning parameter C that maximizes model accuracy
-KNN$bestTune
+
+kNN <- train(micro_ASV_143~., #predictor data object
+             data=training, #outcome data object
+             method="knn",
+             trControl = fitControl,
+             tuneGrid=data.frame(k=11),
+             importance=T)
+kNN$results
+print(kNN)
+plottop20(kNN)
+knn20 <- top20(kNN)
+knn20
+
+same2 <- which(knn20$predictors %in% samesame[,1])
+(samesame2 <- as.data.frame(knn20$predictors[same2]))
+samesame2
+# write.csv(samesame2, "m143_samesame_rf_pls_knn_dec15.csv")
 
 
-comp.mods <- data.frame(rf.rand20, rf.grid20, svmlin20, svmrad20, knn20)
 
-pred_var_helli <- pred_var %>% decostand(method = "hellinger")
+pred_var_helli <- pred_var
 
-asv.for.m143<- pred_var_helli[c("ASV_310", 
-                          "ASV_180", 
-                          "ASV_153",
-                          "ASV_416",
-                          "ASV_654",
-                          "ASV_275", 
-                          "ASV_139",
-                          "ASV_715",
-                          "ASV_633",
-                          "ASV_625",
+asv.for.m143<- pred_var_helli[c("ASV_145", 
+                          "ASV_310", 
                           "ASV_93",
-                          "ASV_4"),]
+                          "ASV_446",
+                          "ASV_21"),]
 head(asv.for.m143 <- t(asv.for.m143))
 
 head(respM143 <- micro_response[,3])
@@ -1630,39 +1450,73 @@ timeseriedf[,1] <- NULL #remove col1 can also call "timeseriesdf$Row.names"
 
 timeseriedf$date <- as.Date(with(timeseriedf, paste(year, month, day, sep="-")), "%Y-%m-%d")
 timeseriedf <- timeseriedf[order(as.Date(timeseriedf$date, format="%Y-%m-%d")),] #order by date
-ts.df <- timeseriedf[,1:13] #keep only ASV cols
+ts.df <- timeseriedf[,1:6] #keep only ASV cols
 ts <- log(ts.df)
+head(ts)
 
-#plot
+names(ts)[names(ts) == "ASV_143"] <- "Microcystis (ASV_143)"
+names(ts)[names(ts) == "ASV_93"] <- "Uncultured cyanomyovirus (ASV_93)"
+names(ts)[names(ts) == "ASV_145"] <- "Uncultured cyanophage (ASV_145)"
+names(ts)[names(ts) == "ASV_21"] <- "Uncultured Myoviridae (ASV_21)"
+names(ts)[names(ts) == "ASV_310"] <- "Uncultured cyanophage (ASV_310)"
+names(ts)[names(ts) == "ASV_446" ] <- "Uncultured Myoviridae (ASV_446)"
+
+
+
+ts.plot <- ts %>% 
+  rownames_to_column() %>% 
+  gather(key = key, value = value, c("Microcystis (ASV_143)",
+                                     "Uncultured cyanomyovirus (ASV_93)",
+                                     "Uncultured cyanophage (ASV_145)",
+                                     "Uncultured Myoviridae (ASV_21)",
+                                     "Uncultured cyanophage (ASV_310)",
+                                     "Uncultured Myoviridae (ASV_446)"
+                                     )) %>% 
+  mutate(rowname = factor(rowname))
+
+ts.plot$key <- factor(ts.plot$key, c(
+                                     "Uncultured Myoviridae (ASV_21)",
+                                     "Uncultured cyanomyovirus (ASV_93)",
+                                     "Uncultured cyanophage (ASV_145)",
+                                     "Uncultured cyanophage (ASV_310)",
+                                     "Uncultured Myoviridae (ASV_446)",
+                                     "Microcystis (ASV_143)"
+                                     ))
+ts.plot %>%
+  ggplot(aes(x = as.numeric(rowname), y = value, color = key)) + 
+  geom_point() +
+  geom_line() +
+  ggtitle("Timeseries microcystis ASV143 and viral ")+
+  #scale_x_discrete(labels=timeseriedf$date, name= "Ordered by date")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), #rotate axis labels
+        plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(name = "ordered by date") +
+  scale_y_continuous(name = "log(abondance)")+
+  scale_color_manual(values=c(ASV_145 = "lightgrey", 
+                              ASV_21 = "lightgrey", 
+                              ASV_310 = "lightgrey", 
+                              ASV_446 = "lightgrey", 
+                              ASV_93 = "blue",
+                              ASV_143 = "red"))+
+                       theme_bw()
+
+
+names(ts)
+
+
+
 ts %>% 
   rownames_to_column() %>% 
-  gather(key = key, value = value, ASV_143:ASV_4) %>% 
+  gather(key = key, value = value, ASV_143:ASV_21) %>% 
   mutate(rowname = factor(rowname)) %>% 
   ggplot(aes(as.numeric(rowname), value, color = key)) + 
   geom_point() + 
   geom_line() +
   scale_x_continuous(name = "order by date") +
   scale_y_continuous(name = "log(abondance)")+
-  #scale_color_manual(values=c("black", "red", "blue"))+
+  facet_wrap(~key)+
   theme_bw()
 
-library(gghighlight)
-ts %>% 
-  rownames_to_column() %>% 
-  gather(key = key, value = value, ASV_143:ASV_4) %>% 
-  mutate(rowname = factor(rowname)) %>% 
-  gghighlight(aes(as.numeric(rowname), value, color = key)) + 
-  geom_point() + 
-  geom_line() +
-  scale_x_continuous(name = "order by date") +
-  scale_y_continuous(name = "log(abondance)")+
-  #scale_color_manual(values=c("black", "red", "blue"))+
-  theme_bw()
-
-
-
-bestMtry <- tuneRF(x,y, stepFactor = 1.5, improve = 1e-5, ntree = 500)
-print(bestMtry)
 
 
 
@@ -1720,11 +1574,15 @@ summary(ensemble_1)
 
 
 ### Graph temporal series ###
-head(respM7 <- micro_response[,3])
-impVir <- pred_var[c("ASV_855", "ASV_4", "ASV_243"),]
+head(respM143 <- micro_response[,3])
+impVir <- pred_var[c("ASV_145", 
+                     "ASV_310", 
+                     "ASV_93",
+                     "ASV_446",
+                     "ASV_21"),]
 head(impVir <- t(impVir))
 
-head(timeseriedf <- merge(respM7, impVir, by="row.names"))
+head(timeseriedf <- merge(respM143, impVir, by="row.names"))
 rownames(timeseriedf) <- timeseriedf[,1] #set col1 as rownames
 orgDate <- timeseriedf[,1]
 orgDate2 <- sub("^(.*)[.].*", "\\1", orgDate[-c(1,3)]) #remove everything after last period. 1st and 3rd entries don't have same dims so omit
@@ -1751,13 +1609,13 @@ timeseriedf[,1] <- NULL #remove col1 can also call "timeseriesdf$Row.names"
 
 timeseriedf$date <- as.Date(with(timeseriedf, paste(year, month, day, sep="-")), "%Y-%m-%d")
 timeseriedf <- timeseriedf[order(as.Date(timeseriedf$date, format="%Y-%m-%d")),] #order by date
-timeseriedf <- timeseriedf[,1:3] #keep only ASV cols
+timeseriedf <- timeseriedf[,1:6] #keep only ASV cols
 ts <- log(timeseriedf)
 
 #plot
 ts %>% 
   rownames_to_column() %>% 
-  gather(key = key, value = value, ASV_143:ASV_4) %>% 
+  gather(key = key, value = value, ASV_143:ASV_21) %>% 
   mutate(rowname = factor(rowname)) %>% 
   ggplot(aes(as.numeric(rowname), value, color = key)) + 
   geom_point() + 
