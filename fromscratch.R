@@ -129,13 +129,18 @@ filt_vir <- filt_virseq %>% otu_table()
 
 #### ALPHA DIV ####
 library(breakaway)
-package.version("breakaway")
+package_version(breakaway)
+
+ba.dates <- meta %>% select(Date)
 
 #richness by year
 ba <- breakaway(viral_physeq)
 ba
-plot(ba, viral_physeq, color="Years", title="Estimate of species richness by sample date")
-
+plot(ba, viral_physeq, color="Years", 
+     title="Estimate of species richness by sample date",
+     xaxt= "n")
+axis(side = 1, labels = ba.dates)
+     
 
 #boxplot years
 ba_year = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
@@ -432,7 +437,9 @@ names(env)
 
 #remove catagorical data from env (do RDA without sites and time -- see PERMANOVA (far) below)
 str(env)
-#env_vars <- env[,!(colnames(env) %in% c("Date", "Months", "Years", "Site", "Period", "bloom2"))]
+temp_vars <- env[,!(colnames(env) %in% c("Total_Phosphorus_ug", "Total_Nitrogen_mg", "Dissolved_P", "Dissolved_N", "Cumulative_precipitation_t1_t7_mm", "Mean_temperature_t0_t7",
+                                        "Microcystin", "Dolicho.Abundance", "Micro.Abundance", "Cyano.Abundance", "cyano.sum.helli",
+                                        "micro.sum.helli" , "doli.sum.helli", "description", "Date"))]
 
 
 env_vars <- env[,!(colnames(env) %in% c("description", "Date", "Months", "Years", "Site", "Period", "bloom2",
@@ -455,10 +462,12 @@ env_keep <- env_vars.std[complete.cases(env_vars.std), ]
 env_keep %>% dplyr::glimpse() 
 summary(env_keep)
 
+temp_keep <- temp_vars[complete.cases(temp_vars), ]
+
 #### Remove viral asvs that are not present (due to removal of NA from env vars)
 sp.asv <- t(vir_helli)
 
-#rm sample rows that are not present in env_keep
+#rm sample rows that are not present in env_keep/temp_keep
 vir.rm <- sp.asv[rownames(sp.asv) %in% rownames(env_keep),]
 dim(vir.rm)
 #which rows are the same
@@ -495,7 +504,10 @@ ordiR2step(rda(vir.rm~1, data = env_keep), scope=formula(vir.rda), direction="fo
 
 anova.cca(vir.rda, by ="terms")
 
-adonis(vir.rm~., data = env_keep)
+temp_sig <- adonis(vir.rm~., data = temp_keep)
+temp_sig
+env_sig <- adonis(vir.rm~., data = env_keep) #need to change line 471 for vir.rm
+env_sig
 
 #get adjusted R2
 (R2adj <- RsquareAdj(vir.rda)$adj.r.squared)
@@ -1474,9 +1486,12 @@ ts.plot <- ts %>%
                                      )) %>% 
   mutate(rowname = factor(rowname))
 
+head(ts.plot)
+
+#organize m143 last and viral ASV of interest second to last, so it's plotted line is brought to the front on graph
 ts.plot$key <- factor(ts.plot$key, c(
-                                     "Uncultured Myoviridae (ASV_21)",
                                      "Uncultured cyanomyovirus (ASV_93)",
+                                     "Uncultured Myoviridae (ASV_21)",
                                      "Uncultured cyanophage (ASV_145)",
                                      "Uncultured cyanophage (ASV_310)",
                                      "Uncultured Myoviridae (ASV_446)",
@@ -1486,22 +1501,27 @@ ts.plot %>%
   ggplot(aes(x = as.numeric(rowname), y = value, color = key)) + 
   geom_point() +
   geom_line() +
-  ggtitle("Timeseries microcystis ASV143 and viral ")+
+  ggtitle("Timeseries: Microcystis (ASV_143) and Uncultured Myoviridae (ASV_446)")+
   #scale_x_discrete(labels=timeseriedf$date, name= "Ordered by date")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+
   scale_x_continuous(name = "ordered by date") +
   scale_y_continuous(name = "log(abondance)")+
-  scale_color_manual(values=c(ASV_145 = "lightgrey", 
-                              ASV_21 = "lightgrey", 
-                              ASV_310 = "lightgrey", 
-                              ASV_446 = "lightgrey", 
-                              ASV_93 = "blue",
-                              ASV_143 = "red"))+
+  scale_color_manual(values=c("Uncultured cyanophage (ASV_145)" = "lightgrey", 
+                              "Uncultured Myoviridae (ASV_21)" = "lightgrey", 
+                              "Uncultured cyanophage (ASV_310)" = "lightgrey", 
+                              "Uncultured Myoviridae (ASV_446)" = "blue", 
+                              "Uncultured cyanomyovirus (ASV_93)" = "lightgrey",
+                              "Microcystis (ASV_143)" = "red"), 
+                     breaks = c(
+                       "Uncultured Myoviridae (ASV_21)",
+                       "Uncultured cyanomyovirus (ASV_93)",
+                       "Uncultured cyanophage (ASV_145)",
+                       "Uncultured cyanophage (ASV_310)",
+                       "Uncultured Myoviridae (ASV_446)",
+                       "Microcystis (ASV_143)"
+                     ))+ #ensure legend stays in same order
                        theme_bw()
-
-
-names(ts)
 
 
 
