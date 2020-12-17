@@ -94,27 +94,33 @@ bact_helli <- bactps_helli %>% otu_table()
 
 library(vegan)
 #remove taxa not seen more than 3 times in at least 10% of the samples. 
-(bact_helli_filt = filter_taxa(bact_helli, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE))
+bact_filt = filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+
+
+(bact_helli_filt = filter_taxa(bactps_helli, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE))
 dim(bact_helli_filt)
 
-bact_pa <- bact_physeq %>% otu_table() %>% decostand("pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
-bact_pa_10 <- bact_abun[(rowSums(bact_pa)/ncol(bact_pa) >= 0.10),] #select only asv present in more than 10% of samples
-bact_helli_filt2 <- bact_helli[rownames(bact_pa_10),] #select asvs present in more than 10% of samples from helli transformed
-dim(bact_helli_filt2)
 
-rownames(bact_helli_filt) == rownames(bact_helli_filt2)
+
+# bact_pa <- bact_physeq %>% otu_table() %>% decostand("pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
+# bact_pa_10 <- bact_abun[(rowSums(bact_pa)/ncol(bact_pa) >= 0.10),] #select only asv present in more than 10% of samples
+# bact_helli_filt2 <- bact_helli[rownames(bact_pa_10),] #select asvs present in more than 10% of samples from helli transformed
+# dim(bact_helli_filt2)
+# 
+# bact_helli_filt %>% otu_table() %>% rownames() == rownames(bact_helli_filt2)
 
 
 
 # micro_ps <- subset_taxa(bact_physeq, Genus == "g__Microcystis")
 # micro_ps %>% otu_table()
-micro_ps <- subset_taxa(bact_helli_filt, Genus == "g__Microcystis")
-micro_ps %>% otu_table()
+micro_ps_helli_filt <- subset_taxa(bact_helli_filt, Genus == "g__Microcystis")
+micro_ps_helli_filt %>% otu_table()
 
-doli_ps <- subset_taxa(bact_helli_filt, Genus == "g__Dolichospermum")
-doli_ps %>% otu_table() %>% row.names()
+doli_ps_helli_filt <- subset_taxa(bact_helli_filt, Genus == "g__Dolichospermum")
+doli_ps_helli_filt %>% otu_table() %>% row.names()
 
-cyano_ps <- subset_taxa(bact_helli_filt, Phylum == "p__Cyanobacteria")
+cyano_ps_helli_filt <- subset_taxa(bact_helli_filt, Phylum == "p__Cyanobacteria")
+cyano_ps_helli_filt %>% otu_table() %>% row.names()
 
 
 
@@ -189,29 +195,143 @@ cyano_rm_ps <- subset_taxa(filt_cyanops, ta4 != "rmTaxa")
 
 
 
-### Divnet ####
-cyano_rm_ps %>% tax_table() %>% head()
 
-#repeat for cyano
-toptaxa_bac <- find.top.taxa(cyano_rm_ps,"ta7")
-head(toptaxa_bac)
-tt_bact <- toptaxa_bac %>% select(c("ta7"))
+#### Divnet ####
+library(magrittr)
+library(DivNet)
+package.version("DivNet")
+
+#find most abundant taxa
+# function to find the most abundant taxa
+# Goes through a phyloseq object, picks out the most abundant taxa and gives the abundance for each
+# and identifies which taxa is most abundant for which sample
+find.top.taxa <- function(x,taxa){
+  require(phyloseq)
+  top.taxa <- tax_glom(x, taxa)
+  otu <- otu_table(t(top.taxa)) # remove the transformation if using a merge_sample object
+  tax <- tax_table(top.taxa)
+  j<-apply(otu,1,which.max)
+  k <- j[!duplicated(j)]
+  l <- data.frame(tax[k,])
+  m <- data.frame(otu[,k])
+  s <- as.name(taxa)
+  colnames(m) = l[,taxa]
+  n <- colnames(m)[apply(m,1,which.max)]
+  m[,taxa] <- n
+  return(m)
+}
+toptaxa <- find.top.taxa(bact_filt,"ASV")
+head(toptaxa)
+tt <- toptaxa %>% select(c("ASV"))
 #see which taxa comes up most
-tt_bact <- as.data.frame(table(tt_bact))
-tt_bact <- tt_bact %>% arrange(desc(Freq))
-head(tt_bact)
+tt <- as.data.frame(table(tt))
+tt <- tt %>% arrange(desc(Freq))
+head(tt)
 
-divnet_cyanosp_years <- divnet(tax_glom(cyano_rm_ps, taxrank = "ta7"),
-                               base = "ASV_1",
-                               X = "Years",
-                               ncores = 4)
-divnet_cyanosp_years
+## R crashes when using viral_physeq (data too large??)
+#check all variables in filtered phyloseq object
+sample_variables(bact_filt)
 
-divnet_cyanosp_bloom <- divnet(tax_glom(cyano_rm_ps, taxrank = "ta7"),
-                               base = "ASV_1",
-                               X = "bloom2",
-                               ncores = 4)
-divnet_cyanosp_bloom
+div_bact_ASV1_years_filt <- bact_filt %>%
+  divnet(X = "Years", ncores = 4,
+         base = "ASV_1")
+div_bact_ASV1_years_filt
+
+div_bact_ASV1_years_filt$shannon %>% head
+
+#to test if alpha-diversity (by default, Shannon) is equal across the values of the covariate X:
+testDiversity(div_bact_ASV1_years_filt)
+
+filtbactps <- bact_filt %>% otu_table()
+filtbactps <- t(filtbactps)
+#isolate for date only
+df.filtbactps <- as.data.frame(row.names(filtbactps))
+df.filtbactps$date <- gsub("^([^_]*_[^_]*_[^_]*_[^_]*)_.*$", "\\1", df.filtbactps[,1]) #removes everything after last _
+df.filtbactps$date <- sub("*._*._*._*._*._*._*._","", df.filtbactps$date) #remove sample ID at beginning
+
+#compare the plug-in Shannon with divnet estimates
+library(ggplot2)
+div_bact_ASV1_years_filt$shannon %>%
+  plot(bact_filt, color = "Years") +
+  scale_x_discrete(labels = df.filtbactps$date, name="Sample date")+ #change x-axis sample name to date
+  ylab("Shannon diversity estimate\n(ASV1 level)")+
+  ggtitle("Shannon diversity estimate between years\n(base ASV1)")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
+        plot.title = element_text(hjust = 0.5)) #center title
+#only a single DivNet estimate for each year (along with error bars). For characteristics for which many samples were observed, there are smaller error bars than for samples for which there was only one sample (seems reasonable -- we had less data).
+
+
+
+
+#distribution of Bray-Curtis distances between the samples
+simplifyBeta(div_ASV1_years_filt, filt_virseq, "bray-curtis", "Years") %>%
+  ggplot(aes(x = interaction(Covar1, Covar2), 
+             y = beta_est,
+             col = interaction(Covar1, Covar2))) +
+  geom_point() +
+  geom_linerange(aes(ymin = lower, ymax = upper)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("") + ylab("Estimates of Bray-Curtis distance")
+
+merge_samples(div_ASV1_years_filt, "Years") %>%
+  sample_shannon %>%
+  plot()
+
+#Shannon index using breakaway
+estimates <- div_ASV1_years$shannon %>% summary %>% select("estimate")
+ses <- sqrt(div_ASV1_years$`shannon-variance`)
+X <- breakaway::make_design_matrix(filt_virseq, "Years")
+(ba_shannon <- betta(estimates, ses, X)$table)
+
+
+
+
+
+
+#remove all na samples from bloom2
+yesno <- c("yes", "no")
+filt_vir_omitna_bloom <- subset_samples(filt_virseq, bloom2 %in% yesno)
+
+div_ASV1_bloom <- filt_vir_omitna_bloom %>%
+  divnet(X = "bloom2", ncores = 4,
+         base = "ASV_1")
+div_ASV1_bloom
+
+
+
+
+div_ASV1_bloom$shannon %>%
+  plot(filt_vir_omitna_bloom, color = "bloom2") +
+  xlab("Sample") +
+  ylab("Shannon diversity estimate\n(ASV level)")
+#only a single DivNet estimate for each year (along with error bars). For characteristics for which many samples were observed, there are smaller error bars than for samples for which there was only one sample (seems reasonable -- we had less data).
+
+#distribution of Bray-Curtis distances between the samples
+simplifyBeta(div_ASV1_bloom, filt_vir_omitna_bloom, "bray-curtis", "bloom2") %>%
+  ggplot(aes(x = interaction(Covar1, Covar2), 
+             y = beta_est,
+             col = interaction(Covar1, Covar2))) +
+  geom_point() +
+  geom_linerange(aes(ymin = lower, ymax = upper)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("") + ylab("Estimates of Bray-Curtis distance")
+
+merge_samples(filt_virseq, "Years") %>%
+  sample_shannon %>%
+  plot()
+
+#Shannon index using breakaway
+estimates_b <- div_ASV1_bloom$shannon %>% summary %>% select("estimate")
+ses_b <- sqrt(div_ASV1_bloom$`shannon-variance`)
+X_b <- breakaway::make_design_matrix(filt_vir_omitna_bloom, "bloom2")
+(ba_shannon_b <- betta(estimates_b, ses_b, X_b)$table)
+
+#Simpson index using breakaway
+estimatesb2 <- div_ASV1_bloom$simpson %>% summary %>% select("estimate")
+sesb2 <- sqrt(div_ASV1_bloom$`simpson-variance`)
+Xb2 <- breakaway::make_design_matrix(filt_vir_omitna_bloom, "bloom2")
+(ba_simpson <- betta(estimatesb2, sesb2, Xb2)$table)
+
 
 
 
