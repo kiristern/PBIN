@@ -78,7 +78,7 @@ sort(taxa_sums(viral_physeq), decreasing = T)[1:10]
 
 # #### ANALYZE CONDITIONALLY RARE VIRAL ASVs & CYANOBACTERIAL ASVs ####
 library(otuSummary)
-condrare_viral <- rareBiosphere(vir_count)
+condrare_viral <- rareBiosphere(ASV_count)
 
 head(condrare_viralL$summaryTable) #maximum and the minimum relative abundance, the ratio of the two abundance, the grouping of rarity, whether the taxa is singleton or doubletons
 head(condrare_viralL$CRT) #subset of the above "summaryTable" only for the conditionally rare taxa.
@@ -87,7 +87,7 @@ head(condrare_viralL$PERare) #permanently rare taxa
 nrow(condrare_viralL$PERare)
 head(condrare_viralL$otherRare) #summarizes rare taxa outside of CRT and PERare
 nrow(condrare_viralL$otherRare)
-(297+4138+892)/nrow(vir_count_littoral)
+(297+4138+892)/nrow(ASV_count)
 
 
 
