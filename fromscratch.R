@@ -184,15 +184,16 @@ ba_plot + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1),
 #richness by bloom/no-bloom
 #boxplot bloom
 ba_bloom = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
-                      "Bloom" = filt_virseq %>% sample_data %>% get_variable("bloom2"))
+                      "Site" = filt_virseq %>% sample_data %>% get_variable("Site"))
 ba_bloom_yn <- na.omit(ba_bloom[1:2])
 
-(ba_plot <-  ggplot(ba_bloom_yn, aes(x = Bloom, y = ba_observed_richness))+
+(ba_plot <-  ggplot(ba_bloom, aes(x = Site, y = ba_observed_richness))+
     geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                                  geom="crossbar", width=0.5) + theme_minimal()
 
 #t test
-group_by(ba_bloom_yn, Bloom) %>%
+#http://www.sthda.com/english/wiki/unpaired-two-samples-t-test-in-r
+group_by(ba_bloom, Site) %>%
   summarise(
     # count = n(),
     mean = mean(ba_observed_richness),
@@ -207,16 +208,16 @@ group_by(ba_bloom_yn, Bloom) %>%
 #Alternative hypothesis: the data are not normally distributed
 
 # Shapiro-Wilk normality test for Bloom
-with(ba_bloom_yn, shapiro.test(ba_observed_richness[Bloom == "yes"])) # p = 0.0.04121
+with(ba_bloom, shapiro.test(ba_observed_richness[Site == "Littoral"])) # p = 0.0.04121 for bloom; p = 0.037 for littoral
 # Shapiro-Wilk normality test for No Bloom
-with(ba_bloom_yn, shapiro.test(ba_observed_richness[Bloom == "no"])) # p = 0.02033
+with(ba_bloom, shapiro.test(ba_observed_richness[Site == "Pelagic"])) # p = 0.02033; p = 0.64 for pelagic
 #the two p-values are not greater than the significance level 0.05 implying that the distribution of the 
 #data are significantly different from the normal distribution. Ie, we cannot assume the normality.
 #if the data are not normally distributed, it’s recommended to use the non parametric two-samples Wilcoxon rank test.
 
 #Wilcoxon test
 # Question: Is there any significant changes in the richness of ASV during and not during bloom?
-wilco <- wilcox.test(ba_observed_richness ~ Bloom, data = ba_bloom_yn)
+wilco <- wilcox.test(ba_observed_richness ~ Site, data = ba_bloom)
 wilco
 
 #print p-value only
@@ -258,6 +259,14 @@ tt <- toptaxa %>% select(c("species"))
 tt <- as.data.frame(table(tt))
 tt <- tt %>% arrange(desc(Freq))
 head(tt)
+
+
+
+#TODO: make new for bact and viral divnets with the same samples/dates (taken from mantel)
+
+
+
+
 
 ## R crashes when using viral_physeq (data too large??)
 #check all variables in filtered phyloseq object
@@ -1309,13 +1318,13 @@ rf.rand20
 #write.csv(rf.rand20, "m143_rf_rand_top20_dec15.csv")
 
 #tuneGrid
-#Create control function for training with 10 (number) folds and keep 3 (repeats) folds for training. search method is grid.
+#Create control function for training with 3 (number) folds and keep 3 (repeats) folds for training. search method is grid.
 fitControl <- trainControl(method="repeatedcv", 
                            number = 3,
                            repeats = 3, 
                            search="grid")
 
-#create tunegrid with 10 values from 1:50 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid. 
+#create tunegrid with 3 values from 1:50 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid. 
 tunegrid <- expand.grid(.mtry = (1:50)) 
 
 rf_grid <- train(micro_ASV_143~., #predictor data object
@@ -1358,12 +1367,13 @@ caret.rf <- train(micro_ASV_143~.,
 print(caret.rf)
 plottop20(caret.rf)
 (rf20 <- top20(caret.rf))
+rf20
 #write.csv(rf20, "m143_rf_dec15.csv")
 
 
 
 #PLS
-pls.mod <- train(micro_ASV_143~.,
+pls <- train(micro_ASV_143~.,
                  data=training,
                  method="pls",
                  scale=T,
@@ -1373,17 +1383,31 @@ pls.mod <- train(micro_ASV_143~.,
                                         selectionFunction = "oneSE"),
                  preProc = c("zv", "center", "scale"),
                  importance=T,
-                 tuneLength=5)
-plot(pls.mod)
+                 tuneLength=25)
+plot(pls)
+print(pls)
+pls$bestTune
+
+pls.mod <- train(micro_ASV_143~.,
+                 data=training,
+                 method="pls",
+                 scale=T,
+                 trControl=trainControl("repeatedcv", 
+                                        number= 3,
+                                        repeats = 3),
+                 preProc = c("zv", "center", "scale"),
+                 tuneGrid=data.frame(ncomp=6),
+                 importance=T
+                 )
 print(pls.mod)
-pls.mod$bestTune
 (pls20 <- top20(pls.mod))
+pls20
 plottop20(pls.mod)
 summary(pls.mod$finalModel)
 
 same <- which(pls20$predictors %in% rf20$predictors)
 (samesame <- as.data.frame(pls20$predictors[same]))
-write.csv(samesame, "m143_samesame_rf_pls_dec15.csv")
+write.csv(samesame, "m143_samesame_rf_pls_dec16.csv")
 
 
 
@@ -1396,7 +1420,7 @@ KNN <- train(micro_ASV_143~., #predictor data object
                 data=training, #outcome data object
                 method="knn", #specifies type of model: rf = random forest
                 trControl = fitControl,
-                tuneLength=20,
+                tuneLength=50,
                 importance=T)
 KNN$results
 print(KNN)
@@ -1420,7 +1444,7 @@ knn20
 same2 <- which(knn20$predictors %in% samesame[,1])
 (samesame2 <- as.data.frame(knn20$predictors[same2]))
 samesame2
-# write.csv(samesame2, "m143_samesame_rf_pls_knn_dec15.csv")
+write.csv(samesame2, "m143_samesame_rf_pls_knn_dec16.csv")
 
 
 
@@ -1428,7 +1452,7 @@ pred_var_helli <- pred_var
 
 asv.for.m143<- pred_var_helli[c("ASV_145", 
                           "ASV_310", 
-                          "ASV_93",
+                          #"ASV_93",
                           "ASV_446",
                           "ASV_21"),]
 head(asv.for.m143 <- t(asv.for.m143))
@@ -1467,7 +1491,7 @@ ts <- log(ts.df)
 head(ts)
 
 names(ts)[names(ts) == "ASV_143"] <- "Microcystis (ASV_143)"
-names(ts)[names(ts) == "ASV_93"] <- "Uncultured cyanomyovirus (ASV_93)"
+#names(ts)[names(ts) == "ASV_93"] <- "Uncultured cyanomyovirus (ASV_93)"
 names(ts)[names(ts) == "ASV_145"] <- "Uncultured cyanophage (ASV_145)"
 names(ts)[names(ts) == "ASV_21"] <- "Uncultured Myoviridae (ASV_21)"
 names(ts)[names(ts) == "ASV_310"] <- "Uncultured cyanophage (ASV_310)"
@@ -1478,7 +1502,7 @@ names(ts)[names(ts) == "ASV_446" ] <- "Uncultured Myoviridae (ASV_446)"
 ts.plot <- ts %>% 
   rownames_to_column() %>% 
   gather(key = key, value = value, c("Microcystis (ASV_143)",
-                                     "Uncultured cyanomyovirus (ASV_93)",
+                                    # "Uncultured cyanomyovirus (ASV_93)",
                                      "Uncultured cyanophage (ASV_145)",
                                      "Uncultured Myoviridae (ASV_21)",
                                      "Uncultured cyanophage (ASV_310)",
@@ -1490,18 +1514,18 @@ head(ts.plot)
 
 #organize m143 last and viral ASV of interest second to last, so it's plotted line is brought to the front on graph
 ts.plot$key <- factor(ts.plot$key, c(
-                                     "Uncultured cyanomyovirus (ASV_93)",
+                                    # "Uncultured cyanomyovirus (ASV_93)",
+                                     "Uncultured Myoviridae (ASV_446)",
                                      "Uncultured Myoviridae (ASV_21)",
                                      "Uncultured cyanophage (ASV_145)",
                                      "Uncultured cyanophage (ASV_310)",
-                                     "Uncultured Myoviridae (ASV_446)",
                                      "Microcystis (ASV_143)"
                                      ))
 ts.plot %>%
   ggplot(aes(x = as.numeric(rowname), y = value, color = key)) + 
   geom_point() +
   geom_line() +
-  ggtitle("Timeseries: Microcystis (ASV_143) and Uncultured Myoviridae (ASV_446)")+
+  ggtitle("Timeseries: Microcystis (ASV_143) and Uncultured cyanophage (ASV_310)")+
   #scale_x_discrete(labels=timeseriedf$date, name= "Ordered by date")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+
@@ -1509,13 +1533,13 @@ ts.plot %>%
   scale_y_continuous(name = "log(abondance)")+
   scale_color_manual(values=c("Uncultured cyanophage (ASV_145)" = "lightgrey", 
                               "Uncultured Myoviridae (ASV_21)" = "lightgrey", 
-                              "Uncultured cyanophage (ASV_310)" = "lightgrey", 
-                              "Uncultured Myoviridae (ASV_446)" = "blue", 
-                              "Uncultured cyanomyovirus (ASV_93)" = "lightgrey",
+                              "Uncultured cyanophage (ASV_310)" = "blue", 
+                              "Uncultured Myoviridae (ASV_446)" = "lightgrey", 
+                             # "Uncultured cyanomyovirus (ASV_93)" = "lightgrey",
                               "Microcystis (ASV_143)" = "red"), 
                      breaks = c(
                        "Uncultured Myoviridae (ASV_21)",
-                       "Uncultured cyanomyovirus (ASV_93)",
+                      # "Uncultured cyanomyovirus (ASV_93)",
                        "Uncultured cyanophage (ASV_145)",
                        "Uncultured cyanophage (ASV_310)",
                        "Uncultured Myoviridae (ASV_446)",
