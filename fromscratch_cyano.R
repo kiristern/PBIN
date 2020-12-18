@@ -69,6 +69,7 @@ nrow(meta2)
 
 #Phyloseq
 library(phyloseq)
+
 bac_count <- otu_table(bact_counts, taxa_are_rows = T)
 cyano_taxa_ps <- tax_table(cyano_taxa)
 rownames(cyano_taxa_ps) <- rownames(cyano_taxa)
@@ -93,7 +94,7 @@ bactps_helli <- transform(bact_physeq, transform = "hellinger", target = "OTU")
 bact_helli <- bactps_helli %>% otu_table()
 
 library(vegan)
-#remove taxa not seen more than 3 times in at least 10% of the samples. 
+#remove taxa not seen more than 10 times in at least 10% of the samples. 
 bact_filt = filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 
 
@@ -121,6 +122,8 @@ doli_ps_helli_filt %>% otu_table() %>% row.names()
 
 cyano_ps_helli_filt <- subset_taxa(bact_helli_filt, Phylum == "p__Cyanobacteria")
 cyano_ps_helli_filt %>% otu_table() %>% row.names()
+
+cyano_ps_filt <- subset_taxa(bact_filt, Phylum == "p__Cyanobacteria")
 
 
 
@@ -220,7 +223,7 @@ find.top.taxa <- function(x,taxa){
   m[,taxa] <- n
   return(m)
 }
-toptaxa <- find.top.taxa(bact_filt,"ASV")
+toptaxa <- find.top.taxa(cyano_ps_filt,"ASV")
 head(toptaxa)
 tt <- toptaxa %>% select(c("ASV"))
 #see which taxa comes up most
@@ -228,43 +231,69 @@ tt <- as.data.frame(table(tt))
 tt <- tt %>% arrange(desc(Freq))
 head(tt)
 
-## R crashes when using viral_physeq (data too large??)
-#check all variables in filtered phyloseq object
-sample_variables(bact_filt)
+## R crashes when using bact_physeq (data too large??). reduce dim by filtering more
+# check all variables in filtered phyloseq object
+sample_variables(cyano_ps_filt)
 
-div_bact_ASV1_years_filt <- bact_filt %>%
+div_cyan_ASV11_years_filt <- cyano_ps_filt %>%
   divnet(X = "Years", ncores = 4,
-         base = "ASV_1")
-div_bact_ASV1_years_filt
+         base = "ASV_11")
+div_cyan_ASV11_years_filt
 
-div_bact_ASV1_years_filt$shannon %>% head
+div_cyan_ASV11_years_filt$shannon %>% head
 
 #to test if alpha-diversity (by default, Shannon) is equal across the values of the covariate X:
-testDiversity(div_bact_ASV1_years_filt)
+testDiversity(div_cyan_ASV11_years_filt)
 
-filtbactps <- bact_filt %>% otu_table()
+filtbactps <- cyano_ps_filt %>% otu_table()
 filtbactps <- t(filtbactps)
 #isolate for date only
 df.filtbactps <- as.data.frame(row.names(filtbactps))
-df.filtbactps$date <- gsub("^([^_]*_[^_]*_[^_]*_[^_]*)_.*$", "\\1", df.filtbactps[,1]) #removes everything after last _
-df.filtbactps$date <- sub("*._*._*._*._*._*._*._","", df.filtbactps$date) #remove sample ID at beginning
+
+df.filtbactps$date <- df.filtbactps[,1]
+df.filtbactps$date<- sub('(.*)[.](.*)', "\\1", df.filtbactps$date) #removes everything after last .
+df.filtbactps$date[2] <- "01.06.2008"
+df.filtbactps$date[3] <- "02.07.2008"
 
 #compare the plug-in Shannon with divnet estimates
 library(ggplot2)
-div_bact_ASV1_years_filt$shannon %>%
-  plot(bact_filt, color = "Years") +
+div_cyan_ASV11_years_filt$shannon %>%
+  plot(reorder_ps, color = "Years") + #run lines below to order properly!
   scale_x_discrete(labels = df.filtbactps$date, name="Sample date")+ #change x-axis sample name to date
   ylab("Shannon diversity estimate\n(ASV1 level)")+
-  ggtitle("Shannon diversity estimate between years\n(base ASV1)")+
+  ggtitle("Shannon diversity estimate between years\n(base ASV11)")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
         plot.title = element_text(hjust = 0.5)) #center title
 #only a single DivNet estimate for each year (along with error bars). For characteristics for which many samples were observed, there are smaller error bars than for samples for which there was only one sample (seems reasonable -- we had less data).
+
+#reorder samples by date(years)
+
+#DID NOT WORK
+# library("data.table")
+# newtab <- data.table(bc$data)
+# setorder(newtab, color) #color is the col for dates
+# bc$data <- newtab
+# print(bc)
+
+meta_cyano <- cyano_ps_filt %>% sample_data()
+asv_cyano <- cyano_ps_filt %>% otu_table()
+
+all(colnames(asv_cyano) %in% rownames(meta_cyano))
+str(meta_cyano)
+meta_cyano$Date <- as.Date(meta_cyano$Date)
+meta_cyano <- meta_cyano[order(meta_cyano$Date),]
+order <- rownames(meta_cyano)
+
+reorder_ps <- phyloseq(otu_table(asv_cyano, taxa_are_rows = T),
+                       sample_data(meta_cyano))
+otu_table(reorder_ps) <- otu_table(reorder_ps)[,order]
+
 
 
 
 
 #distribution of Bray-Curtis distances between the samples
-simplifyBeta(div_ASV1_years_filt, filt_virseq, "bray-curtis", "Years") %>%
+simplifyBeta(div_bact_ASV11_years_filt, bact_filt, "bray-curtis", "Years") %>%
   ggplot(aes(x = interaction(Covar1, Covar2), 
              y = beta_est,
              col = interaction(Covar1, Covar2))) +
@@ -273,15 +302,15 @@ simplifyBeta(div_ASV1_years_filt, filt_virseq, "bray-curtis", "Years") %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   xlab("") + ylab("Estimates of Bray-Curtis distance")
 
-merge_samples(div_ASV1_years_filt, "Years") %>%
+merge_samples(div_bact_ASV11_years_filt, "Years") %>%
   sample_shannon %>%
   plot()
 
 #Shannon index using breakaway
-estimates <- div_ASV1_years$shannon %>% summary %>% select("estimate")
-ses <- sqrt(div_ASV1_years$`shannon-variance`)
-X <- breakaway::make_design_matrix(filt_virseq, "Years")
-(ba_shannon <- betta(estimates, ses, X)$table)
+estimates_bact <- div_bact_ASV11_years_filt$shannon %>% summary %>% select("estimate")
+ses <- sqrt(div_bact_ASV11_years_filt$`shannon-variance`)
+X <- breakaway::make_design_matrix(bact_filt, "Years")
+(ba_shannon <- betta(estimates_bact, ses, X)$table)
 
 
 
