@@ -286,6 +286,11 @@ top20.l <- read.csv("top20L_virL_blastn_nov26.csv")
 top20.l <- top20.l[-c(6:9),]
 head(top20.l, n=2)
 
+
+#ID which ASVs are the same between lit and pel
+as.data.frame(top20.p$query[which(top20.l[,1] %in% top20.p[,1])])
+
+
 vir_lit <- t(vir_count_littoral)
 #select top20 ASVs from full df
 asv_tax.l <- vir_lit[,(colnames(vir_lit) %in% top20.l$query)]
