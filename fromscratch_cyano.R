@@ -103,6 +103,19 @@ dim(bact_helli_filt)
 
 
 
+
+# #### ANALYZE CONDITIONALLY RARE VIRAL ASVs & CYANOBACTERIAL ASVs ####
+library(otuSummary)
+condrare_viral_bact <- rareBiosphere(cyano_counts)
+(nrow(condrare_viral_bact$CRT)+nrow(condrare_viral_bact$PERare)+nrow(condrare_viral_bact$otherRare))/nrow(cyano_counts)
+
+cyno_fil <- cyano_ps_filt %>% otu_table()
+condrare_viral_bact <- rareBiosphere(cyno_fil)
+(nrow(condrare_viral_bact$CRT)+nrow(condrare_viral_bact$PERare)+nrow(condrare_viral_bact$otherRare))/nrow(cyano_counts)
+
+
+
+
 # bact_pa <- bact_physeq %>% otu_table() %>% decostand("pa") #pa: scale x to presence/absence scale (1/0) #ensure against taking ASV with large amounts in just a few samples
 # bact_pa_10 <- bact_abun[(rowSums(bact_pa)/ncol(bact_pa) >= 0.10),] #select only asv present in more than 10% of samples
 # bact_helli_filt2 <- bact_helli[rownames(bact_pa_10),] #select asvs present in more than 10% of samples from helli transformed
@@ -172,11 +185,6 @@ d_meta_keep <- d_meta[complete.cases(d_meta), ] #rm NAs
 condrare_bact <- rareBiosphere(cyano_counts)
 (346+4613+1820)/nrow(cyano_counts)
 
-# condrare_bact_L <- rareBiosphere(bact_count_littoral)
-# (174+5240+1364)/nrow(bact_count_littoral)
-# 
-# condrare_bact_P <- rareBiosphere(bact_count_pelagic)
-# (191+5311+1275)/nrow(bact_count_pelagic)
 
 
 
@@ -255,12 +263,13 @@ df.filtbactps$date<- sub('(.*)[.](.*)', "\\1", df.filtbactps$date) #removes ever
 df.filtbactps #check which rows need to be renamed!
 df.filtbactps$date[38] <- "01.06.2008"
 df.filtbactps$date[41] <- "02.07.2008"
+df.filtbactps$year <- as.factor(sub('.*\\.', '', df.filtbactps$date))
 
 #compare the plug-in Shannon with divnet estimates
 library(ggplot2)
 div_cyan_ASV20_years_filt$shannon %>%
   plot(reorder_ps, color = "Years") + #run lines below to order properly!
-  scale_x_discrete(labels = df.filtbactps$date, name="Sample date")+ #change x-axis sample name to date
+  scale_x_discrete(labels = df.filtbactps$year, name="Sample date")+ #change x-axis sample name to date
   ylab("Shannon diversity estimate\n(ASV1 level)")+
   ggtitle("Shannon diversity estimate between years\n(base ASV20)")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
@@ -275,6 +284,8 @@ all(colnames(asv_cyano) %in% rownames(meta_cyano))
 str(meta_cyano)
 meta_cyano$Date <- as.Date(meta_cyano$Date)
 meta_cyano <- meta_cyano[order(meta_cyano$Date),]
+str(meta_cyano)
+meta_cyano$Years <- as.factor(meta_cyano$Years)
 ordered <- rownames(meta_cyano)
 
 reorder_ps <- phyloseq(otu_table(asv_cyano, taxa_are_rows = T),
