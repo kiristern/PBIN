@@ -80,14 +80,14 @@ sort(taxa_sums(viral_physeq), decreasing = T)[1:10]
 library(otuSummary)
 condrare_viral <- rareBiosphere(ASV_count)
 
-head(condrare_viralL$summaryTable) #maximum and the minimum relative abundance, the ratio of the two abundance, the grouping of rarity, whether the taxa is singleton or doubletons
-head(condrare_viralL$CRT) #subset of the above "summaryTable" only for the conditionally rare taxa.
-nrow(condrare_viralL$CRT)
-head(condrare_viralL$PERare) #permanently rare taxa
-nrow(condrare_viralL$PERare)
-head(condrare_viralL$otherRare) #summarizes rare taxa outside of CRT and PERare
-nrow(condrare_viralL$otherRare)
-(297+4138+892)/nrow(ASV_count)
+head(condrare_viral$summaryTable) #maximum and the minimum relative abundance, the ratio of the two abundance, the grouping of rarity, whether the taxa is singleton or doubletons
+head(condrare_viral$CRT) #subset of the above "summaryTable" only for the conditionally rare taxa.
+nrow(condrare_viral$CRT)
+head(condrare_viral$PERare) #permanently rare taxa
+nrow(condrare_viral$PERare)
+head(condrare_viral$otherRare) #summarizes rare taxa outside of CRT and PERare
+nrow(condrare_viral$otherRare)
+(nrow(condrare_viral$CRT)+nrow(condrare_viral$PERare)+nrow(condrare_viral$otherRare))/nrow(ASV_count)
 
 
 
@@ -96,7 +96,7 @@ nrow(condrare_viralL$otherRare)
 
 
 ######## NON RARE ANALYSIS ###########
-library(microbiome)
+library(vegan)
 virps_helli <- transform(viral_physeq, transform = "hellinger", target = "OTU")
 vir_helli <- virps_helli %>% otu_table()
 length(which(vir_helli != 0))
@@ -110,7 +110,6 @@ dim(vir_helli_filt)
 
 
 
-library(vegan)
 #the sum of an OTU across all samples is greater than 0.005% of all OTUs 
 minTotRelAb = 5e-5
 L = taxa_sums(otutab)
@@ -223,6 +222,28 @@ wilco
 #print p-value only
 wilco$p.value
 # 0.01906275 < 0.05 therefore significant difference between groups
+
+
+
+
+##BETA ORDINATION###
+#heatmap_distance
+dist = sqrt(phyloseq::distance(viral_physeq, "bray"))
+
+#ordination_betadiversity_PCOA
+#PCOA need to be done with Euclidean metric distance
+pcoa=ordinate(viral_physeq, "PCoA", distance=dist)
+
+plot_ordination(viral_physeq, pcoa, color  = "Years") + 
+  theme_bw() + 
+  scale_colour_manual(values = c("red","blue", "green","brown","purple","yellow","black","grey","pink", "orange")) + 
+  geom_point(size = 2) + 
+  scale_shape_manual(values=c(8, 16, 6)) + 
+  theme(axis.text.x  = element_text(vjust=0.5, size=12), 
+        axis.text.y  = element_text(vjust=0.5, size=12), 
+        axis.title.x = element_text(size = 15, face="bold", color="black"),
+        axis.title.y = element_text(size=15,face="bold",color="black"))
+
 
 
 
@@ -437,10 +458,11 @@ permutest(betadisp)
 
 
 ##### RDA TRANSFORMED HELLINGER ######
-asv_count_meta
+library(vegan)
+asv_count_meta <- t(asv_count_meta)
 meta
 
-vir_helli <- decostand(asv_count_meta, method="hellinger")
+vir_helli2 <- decostand(asv_count_meta, method="hellinger")
 env <- meta
 names(env)
 
@@ -454,6 +476,7 @@ temp_vars <- env[,!(colnames(env) %in% c("Total_Phosphorus_ug", "Total_Nitrogen_
 env_vars <- env[,!(colnames(env) %in% c("description", "Date", "Months", "Years", "Site", "Period", "bloom2",
                                         "Microcystin", "Dolicho.Abundance", "Micro.Abundance", "Cyano.Abundance"))]
                                         #"cyano.sum.helli", "doli.sum.helli", "micro.sum.helli"))]
+
 colnames(env_vars)
 
 #standardize environmental data
@@ -514,8 +537,9 @@ ordiR2step(rda(vir.rm~1, data = env_keep), scope=formula(vir.rda), direction="fo
 anova.cca(vir.rda, by ="terms")
 
 temp_sig <- adonis(vir.rm~., data = temp_keep)
+str(temp_keep)
 temp_sig
-env_sig <- adonis(vir.rm~., data = env_keep) #need to change line 471 for vir.rm
+env_sig <- adonis(vir.rm~., data = env_keep) 
 env_sig
 
 #get adjusted R2
@@ -528,7 +552,7 @@ anova.cca(vir.rda, step=1000, by="axis") #canonical axes
 #significant env vars
 env.signif <- subset(env_keep, select = c("Cumulative_precipitation_t1_t7_mm", "doli.sum.helli",
                                           "Total_Phosphorus_ug", "Dissolved_P", "Dissolved_N"))
-env.signif <- subset(env_keep, select = c("doli.sum.helli"))
+env.signif <- subset(env_keep, select = c("doli.sum.helli", "Cumulative_precipitation_t1_t7_mm"))
 
 #the proportion of variation explained by the three constraining variables being 0.058
 
@@ -981,14 +1005,20 @@ protest(dist_vir,dist_bac)
 
 ##### MRT #####
 library(mvpart)
+#devtools::install_github("cran/MVPARTwrap", force=TRUE)
+library(MVPARTwrap)
 
-vir_helli 
+vir_helli #from phyloseq
+vir_helli2 #from decostand
 names(env)
 
 #remove catagorical data from env (do RDA without sites and time -- see PERMANOVA (far) below)
 str(env)
 
-env_vars <- env[,!(colnames(env) %in% c("description", "Date", "Microcystin", "Cyano.Abundance", "Micro.Abundance", "Dolicho.Abundance"))]
+mrt_vars <- env[,(colnames(env) %in% c("Months", "Years", "Site", "Period"))] #test with nico
+dim(mrt_vars)
+env_vars <- mrt_vars
+
 colnames(env_vars)
 
 #rm NAs
@@ -998,15 +1028,16 @@ summary(env_keep)
 
 #### Remove viral asvs that are not present (due to removal of NA from env vars)
 sp.asv <- t(vir_helli)
+sp.asv <- vir_helli2
 
 #rm sample rows that are not present in env_keep
 vir.rm <- sp.asv[rownames(sp.asv) %in% rownames(env_keep),]
-dim(vir.rm)
-
 
 # species and enviro data without NAs needed for RDA
 head(vir.rm)
+dim(vir.rm)
 head(env_keep)
+dim(env_keep)
 
 #use all data to identify which group accurately predicts 
 mrt <- mvpart(as.matrix(vir.rm) ~ ., env_keep, 
@@ -1671,7 +1702,12 @@ ts %>%
 
 
 
+#spearman correlation test
+#http://www.sthda.com/english/wiki/correlation-test-between-two-variables-in-r
+corr <- m143 %>% select("micro_ASV_143", "ASV_21", "ASV_145", "ASV_310", "ASV_446")
 
+head(corr, n=2)
+cor.test(corr[,1], corr[,5], "two.sided", "spearman")
 
 
 
