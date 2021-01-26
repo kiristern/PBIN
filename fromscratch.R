@@ -19,8 +19,12 @@ meta <- read.csv("meta_cmd.csv", row.names = 1, header = T)
 head(meta, n=2)
 #meta$Years <- as.factor(meta$Years)
 meta$Years <- as.factor(meta$Years)
+meta$Date <- as.Date(meta$Date)
 str(meta)
   
+#order meta by date
+meta <- meta[order(meta$Date),]
+
 #get basic meta data info for methods section of report
 length(ASV_count)
 nrow(meta)
@@ -128,7 +132,7 @@ filt_vir <- filt_virseq %>% otu_table()
 
 #### ALPHA DIV ####
 library(breakaway)
-package_version(breakaway)
+package.version(breakaway)
 
 ba.dates <- meta %>% select(Date)
 
@@ -234,7 +238,7 @@ dist = sqrt(phyloseq::distance(viral_physeq, "bray"))
 #PCOA need to be done with Euclidean metric distance
 pcoa=ordinate(viral_physeq, "PCoA", distance=dist)
 
-plot_ordination(viral_physeq, pcoa, color  = "Years") + 
+plot_ordination(viral_physeq, dist, color  = "Years") + 
   theme_bw() + 
   scale_colour_manual(values = c("red","blue", "green","brown","purple","yellow","black","grey","pink", "orange")) + 
   geom_point(size = 2) + 
@@ -440,7 +444,7 @@ print(p)
 library(vegan)
 package.version("vegan")
 citation("vegan")
-bc <- phyloseq::distance(filt_virseq, method = "bray") #calculate bray curtis distance matrix
+bc <- sqrt(phyloseq::distance(filt_virseq, method = "bray")) #calculate bray curtis distance matrix
 sampledf <- data.frame(sample_data(viral_physeq)) #made a df from the sample_data
 adonis(bc ~ Years, data = sampledf)
 
@@ -459,10 +463,10 @@ permutest(betadisp)
 
 ##### RDA TRANSFORMED HELLINGER ######
 library(vegan)
-asv_count_meta <- t(asv_count_meta)
+transposed_asv_count_meta <- t(asv_count_meta)
 meta
 
-vir_helli2 <- decostand(asv_count_meta, method="hellinger")
+vir_helli2 <- decostand(transposed_asv_count_meta, method="hellinger")
 env <- meta
 names(env)
 

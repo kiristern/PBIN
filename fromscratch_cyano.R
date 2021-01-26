@@ -208,7 +208,6 @@ cyano_rm_ps <- subset_taxa(filt_cyanops, ta4 != "rmTaxa")
 
 
 #### Divnet ####
-library(magrittr)
 library(DivNet)
 package.version("DivNet")
 
@@ -264,13 +263,14 @@ df.filtbactps #check which rows need to be renamed!
 df.filtbactps$date[38] <- "01.06.2008"
 df.filtbactps$date[41] <- "02.07.2008"
 df.filtbactps$year <- as.factor(sub('.*\\.', '', df.filtbactps$date))
+df.filtbactps$months <- gsub("(?:[^.]+\\.){1}([^.]+).*", "\\1", df.filtbactps$date) 
 
 #compare the plug-in Shannon with divnet estimates
 library(ggplot2)
 div_cyan_ASV20_years_filt$shannon %>%
   plot(reorder_ps, color = "Years") + #run lines below to order properly!
-  scale_x_discrete(labels = df.filtbactps$year, name="Sample date")+ #change x-axis sample name to date
-  ylab("Shannon diversity estimate\n(ASV1 level)")+
+  scale_x_discrete(labels = df.filtbactps$months, name="Month")+ #change x-axis sample name to date
+  ylab("Shannon diversity estimate\n(ASV20 level)")+
   ggtitle("Shannon diversity estimate between years\n(base ASV20)")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
         plot.title = element_text(hjust = 0.5)) #center title
@@ -293,7 +293,11 @@ reorder_ps <- phyloseq(otu_table(asv_cyano, taxa_are_rows = T),
 otu_table(reorder_ps) <- otu_table(reorder_ps)[,ordered]
 
 
-
+#Shannon index using breakaway
+estimates <- div_cyan_ASV20_years_filt$shannon %>% summary %>% select("estimate")
+ses <- sqrt(div_cyan_ASV20_years_filt$`shannon-variance`)
+X <- breakaway::make_design_matrix(cyano_ps_filt, "Years")
+(ba_shannon <- betta(estimates, ses, X)$table)
 
 
 #distribution of Bray-Curtis distances between the samples
