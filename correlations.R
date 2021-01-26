@@ -28,6 +28,7 @@ cyano_hel_filt <- tcyano_helli_filt[rownames(tcyano_helli_filt) %in% rownames(tv
 dim(cyano_hel_filt)
 #cyano_hel_filt <- read.csv("cyano_hel_filt.csv", header=T, row.names = 1)
 
+#https://microbiome.github.io/tutorials/Heatmap.html
 helli_filt_corr <- associate(vir_hel_filt, cyano_hel_filt, method = "spearman", mode = "table", p.adj.threshold = 0.05, n.signif = 1)
 head(helli_filt_corr)
 heat(helli_filt_corr)
