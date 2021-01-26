@@ -97,6 +97,12 @@ ba.dates <- meta %>% select(Date)
 ba <- breakaway(viral_physeq)
 ba
 
+ymd <- viral_physeq %>% sample_data %>% get_variable("Date")
+library(lubridate)
+m <- month(ymd)
+d <- day(ymd)
+md <- paste(m, d, sep="-")
+
 ba_vir_df = data.frame("richness" = (ba %>% summary)$estimate,
                         #"sample" = (ba %>% summary)$sample_names,
                         "error" = (ba %>% summary)$error,
@@ -106,12 +112,13 @@ ba_vir_df = data.frame("richness" = (ba %>% summary)$estimate,
                        "sample"= viral_physeq %>% sample_data %>% get_variable("description"))
 head(ba_vir_df)
 ggplot(ba_vir_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ #fct_inorder ensures plotting in order of sample date
-  geom_point()+
-  geom_pointrange(aes(ymin=richness-abs(richness-Lower), ymax=richness+abs(richness-Upper)))+ #vs. geom_errorbar
+  geom_point(size=0.5)+
+  geom_errorbar(aes(ymin=richness-abs(richness-Lower), ymax=richness+abs(richness-Upper), width=0.01))+ 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+ #center title
   ggtitle("Breakaway richness by sample")+
-  scale_x_discrete(labels = viral_physeq %>% sample_data %>% get_variable("Months"), name="Month")#change x-axis sample name to Month
+  scale_x_discrete(labels = md, name="Sample date")+ #change x-axis sample name to Month-Day
+  scale_y_continuous(name="Richness")
 
 
 
