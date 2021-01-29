@@ -112,7 +112,8 @@ ggnet2(FG.ig.pos,
        node.size = spiec.deg,
        size.legend = "Degree of Centrality",
        size.cut = 7,
-       edge.size = weights.pos, edge.alpha = 0.25)+
+       edge.size = weights.pos, edge.alpha = 0.25,
+       label = otu.id, label.size = 1)+
   ggtitle("Viral and Cyanobacteria correlation network")
  # guides(color=FALSE)
   
