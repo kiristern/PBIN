@@ -33,7 +33,7 @@ cyanops_filt
 spie <- spiec.easi(list(virps_filt, cyanops_filt), method='mb', nlambda=40,
                       lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05))
 
-dtype <- c(rep(1,ntaxa(virps_filt)), rep(2,ntaxa(cyanops_filt)))
+dtype <- c(rep("Viral",ntaxa(virps_filt)), rep("Cyanobacteria",ntaxa(cyanops_filt)))
 #plot(adj2igraph(getRefit(spie)), vertex.color=dtype+1, vertex.size=9)
 
 
@@ -72,11 +72,11 @@ head(corr.tab <- read.table("spieceasi.ncol.txt"))
 library(RColorBrewer)
 dtype <- as.factor(c(rep(1,ntaxa(virps_filt)), rep(2,ntaxa(cyanops_filt))))
 otu.id <- c(taxa_names(virps_filt), taxa_names(cyanops_filt))
-colours.df <- cbind(data.frame(otu.id), data.frame(dtype))
-
-myColors <- brewer.pal(2,"Set1")
-names(myColors) <- levels(colours.df$dtype)
-nodeColr <- scale_colour_manual(name = "dtype",values = myColors)
+# colours.df <- cbind(data.frame(otu.id), data.frame(dtype))
+# 
+# myColors <- brewer.pal(2,"Set1")
+# names(myColors) <- levels(colours.df$dtype)
+# nodeColr <- scale_colour_manual(name = "dtype",values = myColors)
 
 
 
@@ -85,6 +85,7 @@ library(igraph)
 #Network centrality: degree centrality (ie. degree = number of connections a node has)
 spiec.deg <- degree(FG.ig)
 hist(spiec.deg)
+range(spiec.deg)
 
 #if the degree distribution of a network follows a power law, that network is scale-free
 plaw.fit <- fit_power_law(spiec.deg) #The fit_power_law functions fits a power law to the degree distribution of the network.
@@ -102,18 +103,18 @@ plaw.fit
 #However, we still do not know to what extent biological networks follow a power law as we have few true biological networks.
 #Lima-Mendez and van Helden (2009) (https://pubs.rsc.org/en/content/articlehtml/2009/mb/b908681a) discuss some of the weaknesses of this theory.
 
-#plot degree as node size in the network
-plot_network(FG.ig, 
-             list(virps_filt, cyanops_filt),
-             type="taxa")+
-  geom_point(aes(size=spiec.deg,
-                 fill = factor(colours.df$dtype)),
-             colour='deepskyblue4',
-             shape=21)+
-  scale_fill_manual(values=c("forestgreen", "cyan4"))+
-  labs(fill="Type", size="Degree of centrality")+
-  scale_fill_discrete(name="Type", labels=c("Viral", "Bacterial"))
-
-
+library(ggnet)
+ggnet2(FG.ig.pos,
+       color = dtype, palette = c("Viral" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = spiec.deg,
+       size.legend = "Degree of Centrality",
+       size.cut = 7,
+       edge.size = weights.pos, edge.alpha = 0.25)+
+  ggtitle("Viral and Cyanobacteria correlation network")
+ # guides(color=FALSE)
+  
 
 
