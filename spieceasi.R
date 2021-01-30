@@ -41,11 +41,22 @@ dtype <- c(rep("Viral",ntaxa(virps_filt)), rep("Cyanobacteria",ntaxa(cyanops_fil
 betaMatsym <- as.matrix(symBeta(getOptBeta(spie)))
 dim(betaMatsym)
 
-#check positive, negative, and total edges
-(p.edge =length(betaMat[betaMatsym>0])/2)
-(n.edge =length(betaMat[betaMatsym<0])/2)
-(tot.edge =length(betaMat[betaMatsym!=0])/2)
+#select for cyano - viral connections only
+list(name=c(taxa_names(virps_filt), taxa_names(cyanops_filt)))
+length(taxa_names(virps_filt))
+length(c(taxa_names(virps_filt), taxa_names(cyanops_filt)))
 
+vir.cyan <- betaMatsym[1:576, 577:669]
+
+#check positive, negative, and total edges (divide by 2 because an edge is represented by 2 entries in the matrix)
+(p.edge =length(betaMatsym[betaMatsym>0])/2)
+(n.edge =length(betaMatsym[betaMatsym<0])/2)
+(tot.edge =length(betaMatsym[betaMatsym!=0])/2)
+
+#viral-cyano connections only
+(p.edge =length(vir.cyan[vir.cyan>0]))
+(n.edge =length(vir.cyan[vir.cyan<0]))
+(tot.edge =length(vir.cyan[vir.cyan!=0])/2)
 
 
 #get weights
@@ -55,6 +66,15 @@ weights <- Matrix::summary(t(bm))[,3]
 FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie)),
                     edge.attr=list(weight=weights),
                     vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(cyanops_filt))))
+
+#convert igraph to df
+ig2edges <- as.data.frame(get.edgelist(FG.ig))
+
+#isolate for viral-cyano interactions only
+vircyn <- ig2edges %>% 
+  filter(across(V2, ~ !grepl('vir_', .))) %>%
+                  filter(across(V1, ~grepl('vir_', .)))
+
 
 #plot with weights
 plot_network(FG.ig, list(virps_filt, cyanops_filt))
@@ -117,5 +137,16 @@ ggnet2(FG.ig.pos,
   ggtitle("Viral and Cyanobacteria correlation network")
  # guides(color=FALSE)
   
-
+ggnet2(FG.ig,
+       color = dtype, palette = c("Viral" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = spiec.deg,
+       size.legend = "Degree of Centrality",
+       size.cut = 7,
+      # edge.size = weights, edge.alpha = 0.25, 
+       label = otu.id, label.size = 1)+
+  ggtitle("Viral and Cyanobacteria correlation network")
+# guides(color=FALSE)
 
