@@ -91,17 +91,22 @@ vircyn <- corr.tab %>%
 vircyn.plot <- graph_from_data_frame(vircyn, directed = TRUE, vertices = NULL)
 plot_network(vircyn.plot)
 
+#convert to adjacency matrix 
+mygraph <- graph.data.frame(vircyn)
+vircyn.mat <- get.adjacency(mygraph, sparse = FALSE, attr='weight')
+
+weights.pos <- (1-Matrix::summary(t(bm))[,3])/2
+FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie)),
+                        edge.attr=list(weight=weights.pos))
 
 
-#Create a custom color scale
 dtype <- as.factor(c(rep(1,ntaxa(virps_filt)), rep(2,ntaxa(cyanops_filt))))
 otu.id <- c(taxa_names(virps_filt), taxa_names(cyanops_filt))
 
 
-
 #https://ramellose.github.io/networktutorials/workshop_MDA.html
 #Network centrality: degree centrality (ie. degree = number of connections a node has)
-spiec.deg <- degree(FG.ig)
+spiec.deg <- degree(vircyn.mat)
 hist(spiec.deg)
 range(spiec.deg)
 
@@ -122,7 +127,7 @@ plaw.fit
 #Lima-Mendez and van Helden (2009) (https://pubs.rsc.org/en/content/articlehtml/2009/mb/b908681a) discuss some of the weaknesses of this theory.
 
 library(ggnet)
-ggnet2(FG.ig.pos,
+ggnet2(vircyn.plot,
        color = dtype, palette = c("Viral" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
        alpha=0.75,
        #shape = factor(dtype),
