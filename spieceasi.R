@@ -82,24 +82,24 @@ head(corr.tab <- read.table("spieceasi.ncol.txt"))
 
 
 #isolate for viral-cyano interactions only
-vircyn <- corr.tab %>% 
+vircyn.pos <- corr.tab %>% 
   filter(across(V2, ~ !grepl('vir_', .))) %>%
   filter(across(V1, ~grepl('vir_', .))) %>%
-  rename(weight = V3) #%>%
-  #filter(abs(weight) > 0.1)
+  rename(weight = V3) %>%
+  filter(weight > 0)
 
 #plot vircyn connections with weights only
-vircyn.plot <- graph_from_data_frame(vircyn, directed = TRUE, vertices = NULL)
+vircyn.plot <- graph_from_data_frame(vircyn.pos, directed = TRUE, vertices = NULL)
 plot_network(vircyn.plot)
 
 #convert to adjacency matrix 
-mygraph <- graph.data.frame(vircyn)
+mygraph <- graph.data.frame(vircyn.pos)
 vc.mat <- get.adjacency(mygraph, sparse = FALSE, attr='weight')
 dim(vc.mat)
 
 
-dtype <- as.factor(c(rep("Phage", length(unique(vircyn[,1]))), rep("Cyanobacteria", length(unique(vircyn[,2])))))
-otu.id <- c(as.character(vircyn[,1]), as.character(vircyn[,2]))
+dtype <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), rep("Cyanobacteria", length(unique(vircyn.pos[,2])))))
+otu.id <- c(as.character(vircyn.pos[,1]), as.character(vircyn.pos[,2]))
 
 
 #https://ramellose.github.io/networktutorials/workshop_MDA.html
@@ -117,7 +117,7 @@ plaw.fit
 #In this case, that reference distribution is generated from a power law.
 
 #The null hypothesis can only be rejected if the p-value of the test is below 0.05. 
-#Here, the p-value is 1. Therefore, we cannot conclude that the degree distribution is drawn from a different distribution than the power-law distribution.
+#Here, the p-value is 0.321. Therefore, we cannot conclude that the degree distribution is drawn from a different distribution than the power-law distribution.
 #Scale-free networks are networks with a degree distribution that follows a power law. 
 #Our result indicates that the network may be scale-free and contains nodes with a degree far larger than the average degree. 
 #While there is not that much known about the effect of scale-freeness on microbial networks, studies (e.g., Cohen et al 2001, https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.86.3682) 
@@ -134,47 +134,64 @@ ggnet2(vircyn.plot,
        node.size = spiec.deg,
        size.legend = "Degree of Centrality",
        size.cut = 7,
-       #edge.size = (1-vircyn[,3]/2), edge.alpha = 0.5,
+       edge.size = vircyn.pos[,3], edge.alpha = 0.5,
        label = otu.id, label.size = 1)+
   ggtitle("Viral and Cyanobacteria correlation network")
  # guides(color=FALSE)
+
+# ggnet2(FG.ig.pos,
+#        color = dtype.all, palette = c("1" = "#E1AF00", "2" = "steelblue"), 
+#        alpha=0.75,
+#        #shape = factor(dtype),
+#        #shape.legend = "Type",
+#        node.size = spiec.deg.all,
+#        size.legend = "Degree of Centrality",
+#        size.cut = 7,
+#        # edge.size = weights, edge.alpha = 0.25, 
+#        label = otu.id.all, label.size = 1,
+#        edge.size = weights.pos, edge.alpha = 0.5)+
+#        ggtitle("Viral and Cyanobacteria correlation network")
+# # guides(color=FALSE)
   
 #Check which OTUs are part of different modules.
-clusters=cluster_fast_greedy(vircyn.plot)
-clusterOneIndices=which(clusters$membership==1)
-clusterOneOtus=clusters$names[clusterOneIndices]
-clusterTwoIndices=which(clusters$membership==2)
-clusterTwoOtus=clusters$names[clusterTwoIndices]
+#https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
 
+#GREEDY COMMUNITY DETECTION
+clusters<-cluster_fast_greedy(as.undirected(vircyn.plot))
+clusters
+modularity(clusters)
+#modularity matrix
+B = modularity_matrix(vircyn.plot, membership(clusters))
+round(B[1,],5)
+#membership of nodes
+membership(clusters)
+#number of communities
+length(clusters)
+#size of communities
+sizes(clusters)
+#crossing edges
+crossing(clusters, vircyn.plot)
 
-FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie)),
-                        edge.attr=list(weight=weights.pos))
-plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
+#plot communities without shaded regions
+ggnet2(vircyn.plot,
+       color = membership(clusters),
+       alpha=0.75,
+       shape = factor(dtype),
+       shape.legend = "Type",
+       node.size = spiec.deg,
+       size.legend = "Degree of Centrality",
+       size.cut = 7,
+       edge.size = vircyn.pos[,3], edge.alpha = 0.5,
+       label = otu.id, label.size = 1)+
+  ggtitle("Viral and Cyanobacteria correlation network by clusters")
+# guides(color=FALSE)
 
-clusters=cluster_fast_greedy(FG.ig.pos)
-clusterOneIndices=which(clusters$membership==1)
-clusterOneOtus=clusters$names[clusterOneIndices]
-clusterTwoIndices=which(clusters$membership==2)
-clusterTwoOtus=clusters$names[clusterTwoIndices]
+#plot dendogram
+plot_dendrogram(clusters)
 
-
-
-
-modulesOneIndices=which(modules$membership==1)
-modulesOneOtus=modules$names[modulesOneIndices]
-modulesTwoIndices=which(modules$membership==2)
-modulesTwoOtus=modules$names[modulesTwoIndices]
-
-modulesThreeIndices=which(modules$membership==3)
-modulesThreeOtus=modules$names[modulesThreeIndices]
-modulesFourIndices=which(modules$membership==4)
-modulesFourOtus=modules$names[modulesFourIndices]
-
-modulesFiveIndices=which(modules$membership==5)
-modulesFiveOtus=modules$names[modulesFiveIndices]
-modulesSixIndices=which(modules$membership==6)
-modulesSixOtus=modules$names[modulesSixIndices]
-
-print(modulesOneOtus)
-
-
+#Check which OTUs are part of different modules.
+clustersOneIndices=which(clusters$membership==1)
+clustersOneOtus=clusters$names[clustersOneIndices]
+clustersOneOtus
+#OR
+clusters[1]
