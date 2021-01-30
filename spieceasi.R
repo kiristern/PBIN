@@ -93,20 +93,18 @@ plot_network(vircyn.plot)
 
 #convert to adjacency matrix 
 mygraph <- graph.data.frame(vircyn)
-vircyn.mat <- get.adjacency(mygraph, sparse = FALSE, attr='weight')
+vc.mat <- get.adjacency(mygraph, sparse = FALSE, attr='weight')
 
-weights.pos <- (1-Matrix::summary(t(bm))[,3])/2
-FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie)),
-                        edge.attr=list(weight=weights.pos))
 
 
 dtype <- as.factor(c(rep(1,ntaxa(virps_filt)), rep(2,ntaxa(cyanops_filt))))
 otu.id <- c(taxa_names(virps_filt), taxa_names(cyanops_filt))
 
 
+
 #https://ramellose.github.io/networktutorials/workshop_MDA.html
 #Network centrality: degree centrality (ie. degree = number of connections a node has)
-spiec.deg <- degree(vircyn.mat)
+spiec.deg <- igraph::degree(vircyn.plot)
 hist(spiec.deg)
 range(spiec.deg)
 
