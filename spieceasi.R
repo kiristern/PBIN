@@ -2,7 +2,12 @@
 library(SpiecEasi)
 library(igraph)
 
-cyano_ps
+cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
+doli_ps <- subset_taxa(bact_physeq, Genus == "g__Dolichospermum")
+micro_ps <- subset_taxa(bact_physeq, Genus == "g__Microcystis")
+
+#replace name so don't have to edit whole script
+cyano_ps <- micro_ps
 
 #ensure viral ps has same samples as cyano_ps 
 meta2
@@ -22,20 +27,35 @@ virps <- phyloseq(count_phy, sample_info, mock_taxa2)
 colnames(tax_table(virps)) <- c("Kingdom", "Phylum", "Class",
                                       "Order", "Family", "Genus", "ASV")
 
+#taxa_names(viral_physeq) <- paste0("vir_", taxa_names(viral_physeq))
+taxa_names(doli_ps) <- paste0("doli_", taxa_names(doli_ps))
+taxa_names(micro_ps) <- paste0("micro_", taxa_names(micro_ps))
+
+# colnames(tax_table(viral_physeq)) <- c("Kingdom", "Phylum", "Class",
+#                                        "Order", "Family", "Genus", "ASV")
+
+doli.ps <- prune_samples(rownames(sample_data(doli_ps)) %in% rownames(meta2), doli_ps)
+micro.ps <- prune_samples(rownames(sample_data(micro_ps)) %in% rownames(meta2), micro_ps)
+
 #reorder phyloseq by chronological date
 otu_table(virps) <- otu_table(virps)[,toorder]
+otu_table(doli.ps) <- otu_table(doli.ps)[,toorder]
+otu_table(micro.ps) <- otu_table(micro.ps)[,toorder]
+
+
 virps_filt <- filter_taxa(virps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+
 cyanops_filt <- filter_taxa(cyano_ps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+# doli_filt <- filter_taxa(doli_ps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+# micro_filt <- filter_taxa(micro_ps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+
 
 virps_filt
 cyanops_filt 
 
 #spiec easi
-spie <- spiec.easi(list(virps_filt, cyanops_filt), method='mb', nlambda=40,
+spie <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=40,
                       lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05))
-
-dtype <- c(rep("Viral",ntaxa(virps_filt)), rep("Cyanobacteria",ntaxa(cyanops_filt)))
-#plot(adj2igraph(getRefit(spie)), vertex.color=dtype+1, vertex.size=9)
 
 
 #http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
@@ -43,21 +63,21 @@ betaMatsym <- as.matrix(symBeta(getOptBeta(spie)))
 dim(betaMatsym)
 
 #select for cyano - viral connections only
-list(name=c(taxa_names(virps_filt), taxa_names(cyanops_filt)))
+list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps)))
 length(taxa_names(virps_filt))
-length(c(taxa_names(virps_filt), taxa_names(cyanops_filt)))
+length(c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps)))
 
-vir.cyan <- betaMatsym[1:576, 577:669]
-
-#check positive, negative, and total edges (divide by 2 because an edge is represented by 2 entries in the matrix)
-(p.edge =length(betaMatsym[betaMatsym>0])/2)
-(n.edge =length(betaMatsym[betaMatsym<0])/2)
-(tot.edge =length(betaMatsym[betaMatsym!=0])/2)
-
-#viral-cyano connections only
-(p.edge =length(vir.cyan[vir.cyan>0]))
-(n.edge =length(vir.cyan[vir.cyan<0]))
-(tot.edge =length(vir.cyan[vir.cyan!=0])/2)
+# vir.cyan <- betaMatsym[1:576, 577:614]
+# 
+# #check positive, negative, and total edges (divide by 2 because an edge is represented by 2 entries in the matrix)
+# (p.edge =length(betaMatsym[betaMatsym>0])/2)
+# (n.edge =length(betaMatsym[betaMatsym<0])/2)
+# (tot.edge =length(betaMatsym[betaMatsym!=0])/2)
+# 
+# #viral-cyano connections only
+# (p.edge =length(vir.cyan[vir.cyan>0]))
+# (n.edge =length(vir.cyan[vir.cyan<0]))
+# (tot.edge =length(vir.cyan[vir.cyan!=0]))
 
 
 #get weights
@@ -66,16 +86,16 @@ diag(bm) <- 0
 weights <- Matrix::summary(t(bm))[,3]
 FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie)),
                     edge.attr=list(weight=weights),
-                    vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(cyanops_filt))))
+                    vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
 
 #plot with weights
-plot_network(FG.ig, list(virps_filt, cyanops_filt))
+#plot_network(FG.ig, list(virps_filt, cyanops_filt))
 
 #postive weights only:
 weights.pos <- (1-Matrix::summary(t(bm))[,3])/2
 FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie)),
                     edge.attr=list(weight=weights.pos))
-plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
+#plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
 
 write.graph(FG.ig,"spieceasi.ncol.txt",format="ncol") 
 head(corr.tab <- read.table("spieceasi.ncol.txt"))
@@ -87,18 +107,26 @@ vircyn.pos <- corr.tab %>%
   filter(across(V1, ~grepl('vir_', .))) %>%
   rename(weight = V3) %>%
   filter(weight > 0)
+head(vircyn.pos)
 
 #plot vircyn connections with weights only
 vircyn.plot <- graph_from_data_frame(vircyn.pos, directed = TRUE, vertices = NULL)
 plot_network(vircyn.plot)
 
-#convert to adjacency matrix 
-mygraph <- graph.data.frame(vircyn.pos)
-vc.mat <- get.adjacency(mygraph, sparse = FALSE, attr='weight')
-dim(vc.mat)
+which(as.data.frame(str_count(vircyn.pos$V2, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
 
+repdm <- list()
+for (j in str_count(vircyn.pos$V2, "doli_")){
+  if (j == 1){
+    repdm[length(repdm)+1] <- print("Dolichospermum")
+  } else {
+    repdm[length(repdm)+1] <- print("Microcystis")
+  }
+}
+repdm <- unlist(repdm)
+head(repdm, n=8)
 
-dtype <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), rep("Cyanobacteria", length(unique(vircyn.pos[,2])))))
+dtype <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), repdm))
 otu.id <- c(as.character(vircyn.pos[,1]), as.character(vircyn.pos[,2]))
 
 
@@ -127,7 +155,7 @@ plaw.fit
 
 library(ggnet)
 ggnet2(vircyn.plot,
-       color = dtype, palette = c("Phage" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+       color = dtype, palette = c("Phage" = "#E1AF00", "Dolichspermum" = "red", "Microcystis" = "steelblue"), 
        alpha=0.75,
        #shape = factor(dtype),
        #shape.legend = "Type",
@@ -136,22 +164,9 @@ ggnet2(vircyn.plot,
        size.cut = 7,
        edge.size = vircyn.pos[,3], edge.alpha = 0.5,
        label = otu.id, label.size = 1)+
-  ggtitle("Viral and Cyanobacteria correlation network")
+  ggtitle("Viral and Microcystis correlation network")
  # guides(color=FALSE)
 
-# ggnet2(FG.ig.pos,
-#        color = dtype.all, palette = c("1" = "#E1AF00", "2" = "steelblue"), 
-#        alpha=0.75,
-#        #shape = factor(dtype),
-#        #shape.legend = "Type",
-#        node.size = spiec.deg.all,
-#        size.legend = "Degree of Centrality",
-#        size.cut = 7,
-#        # edge.size = weights, edge.alpha = 0.25, 
-#        label = otu.id.all, label.size = 1,
-#        edge.size = weights.pos, edge.alpha = 0.5)+
-#        ggtitle("Viral and Cyanobacteria correlation network")
-# # guides(color=FALSE)
   
 #Check which OTUs are part of different modules.
 #https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
@@ -183,7 +198,7 @@ ggnet2(vircyn.plot,
        size.cut = 7,
        edge.size = vircyn.pos[,3], edge.alpha = 0.5,
        label = otu.id, label.size = 1)+
-  ggtitle("Viral and Cyanobacteria correlation network by clusters")
+  ggtitle("Viral and Microcystis correlation network by clusters")
 # guides(color=FALSE)
 
 #plot dendogram
