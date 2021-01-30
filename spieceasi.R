@@ -94,11 +94,14 @@ plot_network(vircyn.plot)
 #convert to adjacency matrix 
 mygraph <- graph.data.frame(vircyn)
 vc.mat <- get.adjacency(mygraph, sparse = FALSE, attr='weight')
+dim(vc.mat)
 
 
+dtype <- as.factor(c(rep("Phage", length(unique(vircyn[,1]))), rep("Cyanobacteria", length(unique(vircyn[,2])))))
+otu.id <- c(as.character(vircyn[,1]), as.character(vircyn[,2]))
 
-dtype <- as.factor(c(rep(1,ntaxa(virps_filt)), rep(2,ntaxa(cyanops_filt))))
-otu.id <- c(taxa_names(virps_filt), taxa_names(cyanops_filt))
+# dtype.all <- as.factor(c(rep(1,ntaxa(virps_filt)), rep(2,ntaxa(cyanops_filt))))
+# otu.id.all <- c(taxa_names(virps_filt), taxa_names(cyanops_filt))
 
 
 
@@ -107,6 +110,8 @@ otu.id <- c(taxa_names(virps_filt), taxa_names(cyanops_filt))
 spiec.deg <- igraph::degree(vircyn.plot)
 hist(spiec.deg)
 range(spiec.deg)
+
+# spiec.deg.all <- igraph::degree(FG.ig.pos)
 
 #if the degree distribution of a network follows a power law, that network is scale-free
 plaw.fit <- fit_power_law(spiec.deg) #The fit_power_law functions fits a power law to the degree distribution of the network.
@@ -126,28 +131,27 @@ plaw.fit
 
 library(ggnet)
 ggnet2(vircyn.plot,
-       color = dtype, palette = c("Viral" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+       color = dtype, palette = c("Phage" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
        alpha=0.75,
        #shape = factor(dtype),
        #shape.legend = "Type",
        node.size = spiec.deg,
        size.legend = "Degree of Centrality",
        size.cut = 7,
-       edge.size = weights.pos, edge.alpha = 0.25,
+       edge.size = (1-vircyn[,3]/2), edge.alpha = 0.5,
        label = otu.id, label.size = 1)+
   ggtitle("Viral and Cyanobacteria correlation network")
  # guides(color=FALSE)
   
-ggnet2(FG.ig,
-       color = dtype, palette = c("Viral" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+ggnet2(FG.ig.pos,
+       color = dtype.all, palette = c("1" = "#E1AF00", "2" = "steelblue"), 
        alpha=0.75,
        #shape = factor(dtype),
        #shape.legend = "Type",
-       node.size = spiec.deg,
+       node.size = spiec.deg.all,
        size.legend = "Degree of Centrality",
        size.cut = 7,
-      # edge.size = weights, edge.alpha = 0.25, 
-       label = otu.id, label.size = 1)+
+       edge.size = weights.pos, edge.alpha = 0.5)+
   ggtitle("Viral and Cyanobacteria correlation network")
 # guides(color=FALSE)
 
