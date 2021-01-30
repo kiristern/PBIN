@@ -1,5 +1,6 @@
 #https://github.com/zdk123/SpiecEasi 
 library(SpiecEasi)
+library(igraph)
 
 cyano_ps
 
@@ -67,15 +68,6 @@ FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie)),
                     edge.attr=list(weight=weights),
                     vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(cyanops_filt))))
 
-#convert igraph to df
-ig2edges <- as.data.frame(get.edgelist(FG.ig))
-
-#isolate for viral-cyano interactions only
-vircyn <- ig2edges %>% 
-  filter(across(V2, ~ !grepl('vir_', .))) %>%
-                  filter(across(V1, ~grepl('vir_', .)))
-
-
 #plot with weights
 plot_network(FG.ig, list(virps_filt, cyanops_filt))
 
@@ -88,20 +80,26 @@ plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
 write.graph(FG.ig,"spieceasi.ncol.txt",format="ncol") 
 head(corr.tab <- read.table("spieceasi.ncol.txt"))
 
+
+#isolate for viral-cyano interactions only
+vircyn <- corr.tab %>% 
+  filter(across(V2, ~ !grepl('vir_', .))) %>%
+  filter(across(V1, ~grepl('vir_', .))) %>%
+  rename(weight = V3)
+
+#plot vircyn connections with weights only
+vircyn.plot <- graph_from_data_frame(vircyn, directed = TRUE, vertices = NULL)
+plot_network(vircyn.plot)
+
+
+
 #Create a custom color scale
-library(RColorBrewer)
 dtype <- as.factor(c(rep(1,ntaxa(virps_filt)), rep(2,ntaxa(cyanops_filt))))
 otu.id <- c(taxa_names(virps_filt), taxa_names(cyanops_filt))
-# colours.df <- cbind(data.frame(otu.id), data.frame(dtype))
-# 
-# myColors <- brewer.pal(2,"Set1")
-# names(myColors) <- levels(colours.df$dtype)
-# nodeColr <- scale_colour_manual(name = "dtype",values = myColors)
 
 
 
 #https://ramellose.github.io/networktutorials/workshop_MDA.html
-library(igraph)
 #Network centrality: degree centrality (ie. degree = number of connections a node has)
 spiec.deg <- degree(FG.ig)
 hist(spiec.deg)
