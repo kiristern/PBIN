@@ -54,12 +54,12 @@ virps_filt
 cyanops_filt 
 
 #spiec easi
-spie <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=40,
+spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=40,
                       lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05))
 
 
 #http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
-betaMatsym <- as.matrix(symBeta(getOptBeta(spie)))
+betaMatsym <- as.matrix(symBeta(getOptBeta(spie2)))
 dim(betaMatsym)
 
 #select for cyano - viral connections only
@@ -81,10 +81,10 @@ length(c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps)))
 
 
 #get weights
-bm <- symBeta(getOptBeta(spie), mode="maxabs")
+bm <- symBeta(getOptBeta(spie2), mode="maxabs")
 diag(bm) <- 0
 weights <- Matrix::summary(t(bm))[,3]
-FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie)),
+FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie2)),
                     edge.attr=list(weight=weights),
                     vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
 
@@ -93,7 +93,7 @@ FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie)),
 
 #postive weights only:
 weights.pos <- (1-Matrix::summary(t(bm))[,3])/2
-FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie)),
+FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie2)),
                     edge.attr=list(weight=weights.pos))
 #plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
 
@@ -115,8 +115,10 @@ plot_network(vircyn.plot)
 
 which(as.data.frame(str_count(vircyn.pos$V2, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
 
+uniq.vircyn <- unique(vircyn.pos$V2)
+
 repdm <- list()
-for (j in str_count(vircyn.pos$V2, "doli_")){
+for (j in str_count(uniq.vircyn, "doli_")){
   if (j == 1){
     repdm[length(repdm)+1] <- print("Dolichospermum")
   } else {
@@ -126,8 +128,8 @@ for (j in str_count(vircyn.pos$V2, "doli_")){
 repdm <- unlist(repdm)
 head(repdm, n=8)
 
-dtype <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), repdm))
-otu.id <- c(as.character(vircyn.pos[,1]), as.character(vircyn.pos[,2]))
+dtype2 <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), repdm))
+otu.id2 <- c(as.character(vircyn.pos[,1]), as.character(vircyn.pos[,2]))
 
 
 #https://ramellose.github.io/networktutorials/workshop_MDA.html
@@ -155,7 +157,7 @@ plaw.fit
 
 library(ggnet)
 ggnet2(vircyn.plot,
-       color = dtype, palette = c("Phage" = "#E1AF00", "Dolichspermum" = "red", "Microcystis" = "steelblue"), 
+       color = dtype2, palette = c("Phage" = "#E1AF00", "Dolichospermum" = "red", "Microcystis" = "steelblue"), 
        alpha=0.75,
        #shape = factor(dtype),
        #shape.legend = "Type",
@@ -163,7 +165,7 @@ ggnet2(vircyn.plot,
        size.legend = "Degree of Centrality",
        size.cut = 7,
        edge.size = vircyn.pos[,3], edge.alpha = 0.5,
-       label = otu.id, label.size = 1)+
+       label = otu.id2, label.size = 1)+
   ggtitle("Viral and Microcystis correlation network")
  # guides(color=FALSE)
 
@@ -191,14 +193,14 @@ crossing(clusters, vircyn.plot)
 ggnet2(vircyn.plot,
        color = membership(clusters),
        alpha=0.75,
-       shape = factor(dtype),
+       shape = factor(dtype2),
        shape.legend = "Type",
        node.size = spiec.deg,
        size.legend = "Degree of Centrality",
        size.cut = 7,
        edge.size = vircyn.pos[,3], edge.alpha = 0.5,
-       label = otu.id, label.size = 1)+
-  ggtitle("Viral and Microcystis correlation network by clusters")
+       label = otu.id2, label.size = 1)+
+  ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")
 # guides(color=FALSE)
 
 #plot dendogram
