@@ -197,11 +197,11 @@ ggnet2(vircyn.plot,
        shape.legend = "Type",
        node.size = spiec.deg,
        size.legend = "Degree of Centrality",
-       size.cut = 7,
+       #size.cut = 6,
        edge.size = vircyn.pos[,3], edge.alpha = 0.5,
        label = otu.id2, label.size = 1)+
-  ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")
-# guides(color=FALSE)
+  ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")+
+  guides(size=FALSE)
 
 #plot dendogram
 plot_dendrogram(clusters)
