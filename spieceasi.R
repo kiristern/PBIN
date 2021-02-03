@@ -55,7 +55,9 @@ cyanops_filt
 
 #spiec easi
 spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=40,
-                      lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05))
+                      lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05,
+                                                                  seed = 1234,
+                                                                  ncores=4))
 
 
 #http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
@@ -81,6 +83,7 @@ length(c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps)))
 
 
 #get weights
+#https://github.com/zdk123/SpiecEasi/issues/81 
 bm <- symBeta(getOptBeta(spie2), mode="maxabs")
 diag(bm) <- 0
 weights <- Matrix::summary(t(bm))[,3]
@@ -94,18 +97,22 @@ FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie2)),
 #postive weights only:
 weights.pos <- (1-Matrix::summary(t(bm))[,3])/2
 FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie2)),
-                    edge.attr=list(weight=weights.pos))
+                    edge.attr=list(weight=weights.pos),
+                    vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
 #plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
 
-write.graph(FG.ig,"spieceasi.ncol.txt",format="ncol") 
-head(corr.tab <- read.table("spieceasi.ncol.txt"))
+head(corr.tab <- as_data_frame(FG.ig, what="edges"))
+head(corr.tab)
+
+# write.graph(FG.ig,"spieceasi.ncol.txt",format="ncol") 
+# head(corr.tab <- read.table("spieceasi.ncol.txt"))
 
 
 #isolate for viral-cyano interactions only
 vircyn.pos <- corr.tab %>% 
-  filter(across(V2, ~ !grepl('vir_', .))) %>%
-  filter(across(V1, ~grepl('vir_', .))) %>%
-  rename(weight = V3) %>%
+  filter(across(to, ~ !grepl('vir_', .))) %>%
+  filter(across(from, ~grepl('vir_', .))) %>%
+  #rename(weight = V3) %>%
   filter(weight > 0)
 head(vircyn.pos)
 
@@ -113,9 +120,9 @@ head(vircyn.pos)
 vircyn.plot <- graph_from_data_frame(vircyn.pos, directed = TRUE, vertices = NULL)
 plot_network(vircyn.plot)
 
-which(as.data.frame(str_count(vircyn.pos$V2, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
+which(as.data.frame(str_count(vircyn.pos$to, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
 
-uniq.vircyn <- unique(vircyn.pos$V2)
+uniq.vircyn <- unique(vircyn.pos$to)
 
 repdm <- list()
 for (j in str_count(uniq.vircyn, "doli_")){
