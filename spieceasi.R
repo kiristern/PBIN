@@ -54,11 +54,15 @@ virps_filt
 cyanops_filt 
 
 #spiec easi
-spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=40,
-                      lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05,
+spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=125,
+                      lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
+                                                                  subsample.ratio=0.8,
                                                                   seed = 1234,
                                                                   ncores=4))
 
+spie2$select$stars$summary #if coming up with empty network: b/c max value of the StARS summary statistic never crosses the default threshold (0.05). fix by lowering lambda.min.ratio to explore denser networks
+getStability(spie2)
+sum(getRefit(spie2))/2
 
 #http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
 betaMatsym <- as.matrix(symBeta(getOptBeta(spie2)))
@@ -144,6 +148,10 @@ otu.id2 <- c(as.character(vircyn.pos[,1]), as.character(vircyn.pos[,2]))
 spiec.deg <- igraph::degree(vircyn.plot)
 hist(spiec.deg)
 range(spiec.deg)
+
+# dd <- degree.distribution(vircyn.plot)
+# plot(0:(length(dd)-1), dd, ylim=c(0,1), type='b', 
+#      ylab="Frequency", xlab="Degree", main="Degree Distributions")
 
 
 #if the degree distribution of a network follows a power law, that network is scale-free
