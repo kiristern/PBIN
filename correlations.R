@@ -1,3 +1,87 @@
+### Compare alpha diversities of cyano and phage ###
+dim(ba_bact_df)
+dim(ba_vir_df)
+head(ba_bact_df)
+head(ba_vir_df)
+
+ba_shannon
+ba_shannon$sample <- ba_bact_df$sample
+vir_shannon
+vir_shannon$sample <- ba_vir_df$sample
+
+#merge dfs to ensure same dims
+df <- merge(ba_bact_df,ba_vir_df, by="sample")
+
+df <- merge(ba_shannon,vir_shannon, by="sample")
+dim(df)
+head(df)
+
+# #check that ba_bact_df is .x
+# which(ba_bact_df$sample == "01.06.2008") 
+# ba_bact_df[37,]
+
+head(alpha_bact <- df[,c("sample", "richness.x")])
+head(alpha_vir <- df[,c("sample", "richness.y")])
+
+head(alpha_bact <- df[,c("sample", "Shannon.x")])
+head(alpha_vir <- df[,c("sample", "Shannon.y")])
+
+#cross correlation and lagged regressions
+alpha_corr <- ccf(alpha_bact$richness.x, alpha_vir$richness.y)
+
+alpha_corr <- ccf(alpha_bact$Shannon.x, alpha_vir$Shannon.y)
+alpha_corr
+
+alphadiv.corr <- df[,c("richness.x", "richness.y")]
+
+alphadiv.corr <- df[,c("Shannon.x", "Shannon.y")]
+rownames(alphadiv.corr) <- df$sample
+
+names(alphadiv.corr)[names(alphadiv.corr) == "richness.x"] <- "cyan.rich"
+names(alphadiv.corr)[names(alphadiv.corr) == "richness.y"] <- "vir.rich"
+
+names(alphadiv.corr)[names(alphadiv.corr) == "Shannon.x"] <- "cyan.rich"
+names(alphadiv.corr)[names(alphadiv.corr) == "Shannon.y"] <- "vir.rich"
+head(alphadiv.corr)
+
+
+#http://www.sthda.com/english/wiki/correlation-test-between-two-variables-in-r
+library("ggpubr")
+
+### Is the covariation linear? 
+ggscatter(alphadiv.corr, y = "cyan.rich", x = "vir.rich", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "spearman",
+          ylab = "Cyanobacterial richness", xlab = "Viral richness", title = "Correlation between viral and bacterial Shannon diversity")
+#Yes, from the plot the relationship is linear. 
+#situations where the scatter plots show curved patterns, dealing with nonlinear association b/w the 2 variables.
+
+### Are the data from each of the 2 variables (x, y) follow a normal distribution?
+
+##Shapiro-Wilk test can be performed as follow:
+#Null hypothesis: the data are normally distributed
+#Alternative hypothesis: the data are not normally distributed
+
+# Shapiro-Wilk normality test for bact
+shapiro.test(alphadiv.corr$cyan.rich) # => p = 0.034
+# Shapiro-Wilk normality test for vir
+shapiro.test(alphadiv.corr$vir.rich) # => p = 0.016
+#p-values <0.05 implying that the distribution of the data are significantly different from normal distribution. 
+#In other words, we cannot assume the normality.
+
+#Visual inspection of the data normality 
+ggqqplot(alphadiv.corr$cyan.rich, ylab = "cyan.rich")
+ggqqplot(alphadiv.corr$vir.rich, ylab = "vir.rich")
+
+richness.corr <- cor.test(alphadiv.corr$cyan.rich, alphadiv.corr$vir.rich, method = "spearman")
+richness.corr
+# p-val = 0.02084 < 0.05, therefore bact rich and vir rich are signif correlated with a corr coeff (rho) of -0.2076
+
+
+
+
+
+
 #Correlation Species-Env
 spec <- abund_clean_env_hel[,2:68]
 env <- abund_clean_env_hel[,71:86]
@@ -39,193 +123,122 @@ corr.filt[order(corr.filt$X2),]
 unique(corr.filt$X1)
 unique(corr.filt$X2)
 
-### Graph temporal series ###
-X1 <- corr.filt %>% filter(X2 == "ASV_260") %>%
-  select(X1) 
-X1rm <- str_remove(X1$X1, "vir_")
-X1rm
 
-corr.ts[,!(names(corr.ts) %in% rm.col)]
 
-head(vir.corr <- ASV_count[(rownames(ASV_count) %in% X1rm),])
-tvir.corr <- t(samp_date(vir.corr)) #apply samp_date custom function to change sample col names to dates
 
-cyano.corr <- cyano_counts[c("ASV_260"),]
-head(tcyano.corr <- t(cyano.corr))
 
-head(corr.ts <- merge(tcyano.corr, tvir.corr, by="row.names"))
-rownames(corr.ts) <- corr.ts[,1] #set col1 as rownames
-orgDate <- corr.ts[,1]
-orgDate2 <- sub("^(.*)[.].*", "\\1", orgDate[-c(1,3)]) #remove everything after last period. 1st and 3rd entries don't have same dims so omit
-orgDate[-c(1,3)] <- orgDate2 
-corr.ts[,1] <- orgDate
 
-#break up into own cols
-for (i in 1:nrow(corr.ts)){
-  corr.ts$day[i] <- str_extract_all(corr.ts$Row.names, "[^.]+")[[i]][[1]]
-  corr.ts$month[i] <- str_extract_all(corr.ts$Row.names, "[^.]+")[[i]][[2]]
-  corr.ts$year[i] <- str_extract_all(corr.ts$Row.names, "[^.]+")[[i]][[3]]
-}
 
-corr.ts[,1] <- NULL #remove col1 can also call "timeseriesdf$Row.names"
 
-corr.ts$date <- as.Date(with(corr.ts, paste(year, month, day, sep="-")), "%Y-%m-%d")
-corr.ts <- corr.ts[order(as.Date(corr.ts$date, format="%Y-%m-%d")),] #order by date
-rm.col <- c("day", "month", "year", "date")
-# corr.ts <- corr.ts[,!(names(corr.ts) %in% rm.col)] #keep only ASV cols
-ts.corr <- log(corr.ts[,!(names(corr.ts) %in% rm.col)])
-head(ts.corr)
-dim(ts.corr)
 
-names(ts.corr)[names(ts.corr) == "ASV_260"] <- "Cyanobacteria (ASV_260)"
+
+
+
+
+
+
+
+
+
+###### Mantel test #####
+# https://www.flutterbys.com.au/stats/tut/tut15.2.html
+## Need to run fromscrach_cyano.R
+
+
+### RM RARE ####
+phage <- filt_vir
+dim(phage)
+colnames(phage)
+
+#filter bact to rm rare
+print(bact_physeq)
+filt_bact <- filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+
+bact <- filt_bact %>% otu_table()
+dim(bact)
+colnames(bact)
+
+#remove sample ID at beginning
+colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
+colnames(phage) <- gsub("_", ".", colnames(phage))
+
+
+#select cols that match dates
+# bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
+# dim(bact_keep)
+phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
+dim(phage_keep)
+
+tbact_keep <- t(bact)
+tphage_keep <- t(phage_keep)
+sum(is.na(tphage_keep))
+
+dist_vir<-sqrt(vegdist(tphage_keep, method = "bray"))
+dist_bac<-sqrt(vegdist(tbact_keep, method = "bray"))
+
+plot(dist_vir, dist_bac)
+abline(lm(dist_vir ~ dist_bac))
+
+bact.mantel <- mantel(dist_vir, dist_bac, perm=1000)
+bact.mantel
+
 
 #plot
-ts.corr.plot <- ts.corr %>% 
-  rownames_to_column() %>% 
-  gather(key = key, value = value, "Cyanobacteria (ASV_260)":ASV_447) %>% 
-  mutate(rowname = factor(rowname))
-
-head(ts.corr.plot)
-
-#organize doliASV50 last and viral ASV of interest second to last, so it's plotted line is brought to the front on graph
-ts.corr.plot$key <- factor(ts.corr.plot$key, c(
-                                               "ASV_447", 
-                                               "Cyanobacteria (ASV_260)"))
-ts.corr.plot %>%
-  ggplot(aes(x = as.numeric(rowname), y = value, color = key)) + 
-  geom_point() +
-  geom_line() +
-  ggtitle("Timeseries: Cyanobacteria (ASV_260) and viral ASV_443")+
-  scale_x_discrete(labels = corr.ts$date, name="Date")+#change x-axis sample name to Month
-  scale_y_continuous(name = "log(abondance)")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), #rotate axis labels
-        plot.title = element_text(hjust = 0.5))+ #center title
-  scale_color_manual(values=c(
-                              "ASV_447" = "blue",  
-                              "Cyanobacteria (ASV_260)" = "red"),
-                     breaks = c("ASV_447",
-                       "Cyanobacteria (ASV_260)"
-                     ))+ #ensures legend stays in same order
-  theme_bw()
+hist(bact.mantel$perm)
+abline(v=bact.mantel$statistic)
 
 
-# #organize doliASV50 last and viral ASV of interest second to last, so it's plotted line is brought to the front on graph
-# ts.corr.plot$key <- factor(ts.corr.plot$key, c("ASV_380",
-#                                                "ASV_636", 
-#                                                "ASV_347", 
-#                                                "ASV_289", 
-#                                                "ASV_346",
-#                                                "ASV_261",
-#                                                "ASV_146", 
-#                                                "Dolichospermum (ASV_50)"))
-# ts.corr.plot %>%
-#   ggplot(aes(x = as.numeric(rowname), y = value, color = key)) + 
-#   geom_point() +
-#   geom_line() +
-#   ggtitle("Timeseries: Dolichospermum ASV_50 and viral ASV_146")+
-#   scale_x_discrete(labels = corr.ts$date, name="Date")+#change x-axis sample name to Month
-#   scale_y_continuous(name = "log(abondance)")+
-#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), #rotate axis labels
-#        plot.title = element_text(hjust = 0.5))+ #center title
-#   scale_color_manual(values=c("ASV_636" = "lightgrey", 
-#                               "ASV_347"= "lightgrey", 
-#                               "ASV_289"= "lightgrey",
-#                               "ASV_346"= "lightgrey", 
-#                               "ASV_146"= "blue", 
-#                               "ASV_261"= "lightgrey", 
-#                               "ASV_380"= "lightgrey",
-#                               "Dolichospermum (ASV_50)"= "red"),
-#                      breaks = c(
-#                        "ASV_146", 
-#                        "ASV_261", 
-#                        "ASV_289",
-#                        "ASV_346",  
-#                        "ASV_347", 
-#                        "ASV_380",
-#                        "ASV_636",
-#                        "Dolichospermum (ASV_50)"
-#                      ))+ #ensures legend stays in same order
-#   theme_bw()
+# #generate correlogram (multivariate correlation plot)
+# plot(data.dist, env.dist, type="n")
+# points(data.dist, env.dist, pch=20)
+# # axis(1 )
+# # axis(2, las=1)
+# mtext("Viral distances", 1, line = 3)
+# mtext("Bacterial distances", 2, line=3)
+# abline(lm(data.dist ~ env.dist))
+
+
+
+#### MANTEL FOR CYANO ####
+print(bact_physeq)
+cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
+
+filt_cyano_ps <- filter_taxa(cyano_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+filt_cyano <- filt_cyano_ps %>% otu_table() 
+
+cyno <- filt_cyano
+dim(cyno)
+
+
+# #select cols that match dates
+# cyano_keep <- cyno[,(colnames(cyno) %in% colnames(phage))]
+# dim(cyano_keep)
+
+tcyano_keep <- t(cyno)
+
+dim(tphage_keep)
+dim(tcyano_keep)
+
+# dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
+dist_cyano<-sqrt(vegdist(tcyano_keep, method = "bray"))
+
+plot(dist_vir, dist_cyano)
+abline(lm(dist_vir ~ dist_cyano))
+
+cyano.mantel <- mantel(dist_vir, dist_cyano, perm=1000)
+cyano.mantel
+
+#plot
+hist(cyano.mantel$perm)
+abline(v=cyano.mantel$statistic)
 
 
 
 
 
 
+##### Procrustes #####
 
-
-### Compare alpha diversities of cyano and phage ###
-dim(ba_bact_df)
-dim(ba_vir_df)
-head(ba_bact_df)
-head(ba_vir_df)
-
-ba_shannon
-ba_shannon$sample <- ba_bact_df$sample
-vir_shannon
-vir_shannon$sample <- ba_vir_df$sample
-
-#merge dfs to ensure same dims
-df <- merge(ba_bact_df,ba_vir_df, by="sample")
-df <- merge(ba_shannon,vir_shannon, by="sample")
-dim(df)
-head(df)
-
-# #check that ba_bact_df is .x
-# which(ba_bact_df$sample == "01.06.2008") 
-# ba_bact_df[37,]
-
-head(alpha_bact <- df[,c("sample", "richness.x")])
-head(alpha_vir <- df[,c("sample", "richness.y")])
-
-head(alpha_bact <- df[,c("sample", "Shannon.x")])
-head(alpha_vir <- df[,c("sample", "Shannon.y")])
-
-#cross correlation and lagged regressions
-alpha_corr <- ccf(alpha_bact$richness.x, alpha_vir$richness.y)
-alpha_corr <- ccf(alpha_bact$Shannon.x, alpha_vir$Shannon.y)
-alpha_corr
-
-alphadiv.corr <- df[,c("richness.x", "richness.y")]
-alphadiv.corr <- df[,c("Shannon.x", "Shannon.y")]
-rownames(alphadiv.corr) <- df$sample
-
-names(alphadiv.corr)[names(alphadiv.corr) == "richness.x"] <- "cyan.rich"
-names(alphadiv.corr)[names(alphadiv.corr) == "richness.y"] <- "vir.rich"
-
-names(alphadiv.corr)[names(alphadiv.corr) == "Shannon.x"] <- "cyan.rich"
-names(alphadiv.corr)[names(alphadiv.corr) == "Shannon.y"] <- "vir.rich"
-head(alphadiv.corr)
-
-#http://www.sthda.com/english/wiki/correlation-test-between-two-variables-in-r
-library("ggpubr")
-
-### Is the covariation linear? 
-ggscatter(alphadiv.corr, y = "cyan.rich", x = "vir.rich", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          ylab = "Cyanobacterial richness", xlab = "Viral richness", title = "Correlation between viral and bacterial Shannon diversity")
-#Yes, from the plot the relationship is linear. 
-#situations where the scatter plots show curved patterns, dealing with nonlinear association b/w the 2 variables.
-
-### Are the data from each of the 2 variables (x, y) follow a normal distribution?
-
-##Shapiro-Wilk test can be performed as follow:
-#Null hypothesis: the data are normally distributed
-#Alternative hypothesis: the data are not normally distributed
-
-# Shapiro-Wilk normality test for bact
-shapiro.test(alphadiv.corr$bact.rich) # => p = 0.1102
-# Shapiro-Wilk normality test for vir
-shapiro.test(alphadiv.corr$vir.rich) # => p = 0.9555
-#p-values >0.05 implying that the distribution of the data are not significantly different from normal distribution. 
-#In other words, we can assume the normality.
-
-#Visual inspection of the data normality 
-ggqqplot(alphadiv.corr$bact.rich, ylab = "bact.rich")
-ggqqplot(alphadiv.corr$vir.rich, ylab = "vir.rich")
-
-richness.corr <- cor.test(alphadiv.corr$bact.rich, alphadiv.corr$vir.rich, method = "pearson")
-richness.corr
-# p-val = 0.6889 > 0.05, therefore bact rich and vir rich are not signif correlated with a corr coeff of -0.0363
+protest(dist_vir,dist_cyano)
+protest(dist_vir,dist_bac)
 
