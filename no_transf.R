@@ -121,7 +121,6 @@ ggplot(ba_vir_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ #f
   scale_y_continuous(name="Richness")
 
 
-
 #boxplot years
 ba_year = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
                      "Years" = viral_physeq %>% sample_data %>% get_variable("Years"))
@@ -230,8 +229,7 @@ plot_ordination(viral_physeq, dist, color  = "Years") +
 
 
 
-#### Divnet ####
-library(magrittr)
+#### Divnet #### 
 library(DivNet)
 package.version("DivNet")
 
@@ -254,6 +252,11 @@ find.top.taxa <- function(x,taxa){
   m[,taxa] <- n
   return(m)
 }
+
+## R crashes when using viral_physeq (data too large??)
+#check all variables in filtered phyloseq object
+filt_virseq <- filter_taxa(viral_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE) ##remove taxa not seen more than 1 times in at least 10% of the samples. This protects against ASV with small mean & trivially large coef of var
+
 toptaxa <- find.top.taxa(filt_virseq,"species")
 head(toptaxa)
 tt <- toptaxa %>% select(c("species"))
@@ -269,13 +272,10 @@ head(tt)
 
 
 
-
-## R crashes when using viral_physeq (data too large??)
-#check all variables in filtered phyloseq object
 sample_variables(filt_virseq)
 
 div_ASV1_years_filt <- filt_virseq %>%
-  divnet(X = "Years", ncores = 4,
+  divnet(X = "Years", ncores = 4, 
          base = "ASV_1")
 div_ASV1_years_filt
 
@@ -320,47 +320,47 @@ merge_samples(div_ASV1_years_filt, "Years") %>%
   plot()
 
 #Shannon index using breakaway
-estimates <- div_ASV1_years$shannon %>% summary %>% select("estimate")
-ses <- sqrt(div_ASV1_years$`shannon-variance`)
-X <- breakaway::make_design_matrix(filt_virseq, "Years")
+estimates <- div_ASV1_years_filt$shannon %>% summary %>% select("estimate")
+ses <- sqrt(div_ASV1_years_filt$`shannon-variance`)
+X <- breakaway::make_design_matrix(filt_virseq, "description")
 (ba_shannon <- betta(estimates, ses, X)$table)
 
+#write.csv(ba_shannon, "ba_shannonDescription_vir.csv")
 
 
 
 
-
-#remove all na samples from bloom2
-yesno <- c("yes", "no")
-filt_vir_omitna_bloom <- subset_samples(filt_virseq, bloom2 %in% yesno)
-
-div_ASV1_bloom <- filt_vir_omitna_bloom %>%
-  divnet(X = "bloom2", ncores = 4,
-         base = "ASV_1")
-div_ASV1_bloom
-
-
+# #remove all na samples from bloom2
+# yesno <- c("yes", "no")
+# filt_vir_omitna_bloom <- subset_samples(filt_virseq, bloom2 %in% yesno)
+# 
+# div_ASV1_bloom <- filt_vir_omitna_bloom %>%
+#   divnet(X = "bloom2", ncores = 4,
+#          base = "ASV_1")
+# div_ASV1_bloom
+# 
 
 
-div_ASV1_bloom$shannon %>%
-  plot(filt_vir_omitna_bloom, color = "bloom2") +
-  xlab("Sample") +
-  ylab("Shannon diversity estimate\n(ASV level)")
-#only a single DivNet estimate for each year (along with error bars). For characteristics for which many samples were observed, there are smaller error bars than for samples for which there was only one sample (seems reasonable -- we had less data).
 
-#distribution of Bray-Curtis distances between the samples
-simplifyBeta(div_ASV1_bloom, filt_vir_omitna_bloom, "bray-curtis", "bloom2") %>%
-  ggplot(aes(x = interaction(Covar1, Covar2), 
-             y = beta_est,
-             col = interaction(Covar1, Covar2))) +
-  geom_point() +
-  geom_linerange(aes(ymin = lower, ymax = upper)) + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  xlab("") + ylab("Estimates of Bray-Curtis distance")
-
-merge_samples(filt_virseq, "Years") %>%
-  sample_shannon %>%
-  plot()
+# div_ASV1_bloom$shannon %>%
+#   plot(filt_vir_omitna_bloom, color = "bloom2") +
+#   xlab("Sample") +
+#   ylab("Shannon diversity estimate\n(ASV level)")
+# #only a single DivNet estimate for each year (along with error bars). For characteristics for which many samples were observed, there are smaller error bars than for samples for which there was only one sample (seems reasonable -- we had less data).
+# 
+# #distribution of Bray-Curtis distances between the samples
+# simplifyBeta(div_ASV1_bloom, filt_vir_omitna_bloom, "bray-curtis", "bloom2") %>%
+#   ggplot(aes(x = interaction(Covar1, Covar2), 
+#              y = beta_est,
+#              col = interaction(Covar1, Covar2))) +
+#   geom_point() +
+#   geom_linerange(aes(ymin = lower, ymax = upper)) + 
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#   xlab("") + ylab("Estimates of Bray-Curtis distance")
+# 
+# merge_samples(filt_virseq, "Years") %>%
+#   sample_shannon %>%
+#   plot()
 
 #Shannon index using breakaway
 estimates_b <- div_ASV1_bloom$shannon %>% summary %>% select("estimate")
@@ -368,11 +368,11 @@ ses_b <- sqrt(div_ASV1_bloom$`shannon-variance`)
 X_b <- breakaway::make_design_matrix(filt_vir_omitna_bloom, "bloom2")
 (ba_shannon_b <- betta(estimates_b, ses_b, X_b)$table)
 
-#Simpson index using breakaway
-estimatesb2 <- div_ASV1_bloom$simpson %>% summary %>% select("estimate")
-sesb2 <- sqrt(div_ASV1_bloom$`simpson-variance`)
-Xb2 <- breakaway::make_design_matrix(filt_vir_omitna_bloom, "bloom2")
-(ba_simpson <- betta(estimatesb2, sesb2, Xb2)$table)
+# #Simpson index using breakaway
+# estimatesb2 <- div_ASV1_bloom$simpson %>% summary %>% select("estimate")
+# sesb2 <- sqrt(div_ASV1_bloom$`simpson-variance`)
+# Xb2 <- breakaway::make_design_matrix(filt_vir_omitna_bloom, "bloom2")
+# (ba_simpson <- betta(estimatesb2, sesb2, Xb2)$table)
 
 
 
