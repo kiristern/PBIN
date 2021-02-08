@@ -160,8 +160,14 @@ dim(ba_vir_df)
 head(ba_bact_df)
 head(ba_vir_df)
 
+ba_shannon
+ba_shannon$sample <- ba_bact_df$sample
+vir_shannon
+vir_shannon$sample <- ba_vir_df$sample
+
 #merge dfs to ensure same dims
 df <- merge(ba_bact_df,ba_vir_df, by="sample")
+df <- merge(ba_shannon,vir_shannon, by="sample")
 dim(df)
 head(df)
 
@@ -169,28 +175,36 @@ head(df)
 # which(ba_bact_df$sample == "01.06.2008") 
 # ba_bact_df[37,]
 
-head(alpha_bact <- df[,1:2])
-head(alpha_vir <- df[,c(1, 7)])
+head(alpha_bact <- df[,c("sample", "richness.x")])
+head(alpha_vir <- df[,c("sample", "richness.y")])
+
+head(alpha_bact <- df[,c("sample", "Shannon.x")])
+head(alpha_vir <- df[,c("sample", "Shannon.y")])
 
 #cross correlation and lagged regressions
 alpha_corr <- ccf(alpha_bact$richness.x, alpha_vir$richness.y)
+alpha_corr <- ccf(alpha_bact$Shannon.x, alpha_vir$Shannon.y)
 alpha_corr
 
 alphadiv.corr <- df[,c("richness.x", "richness.y")]
+alphadiv.corr <- df[,c("Shannon.x", "Shannon.y")]
 rownames(alphadiv.corr) <- df$sample
 
-names(alphadiv.corr)[names(alphadiv.corr) == "richness.x"] <- "bact.rich"
+names(alphadiv.corr)[names(alphadiv.corr) == "richness.x"] <- "cyan.rich"
 names(alphadiv.corr)[names(alphadiv.corr) == "richness.y"] <- "vir.rich"
+
+names(alphadiv.corr)[names(alphadiv.corr) == "Shannon.x"] <- "cyan.rich"
+names(alphadiv.corr)[names(alphadiv.corr) == "Shannon.y"] <- "vir.rich"
 head(alphadiv.corr)
 
 #http://www.sthda.com/english/wiki/correlation-test-between-two-variables-in-r
 library("ggpubr")
 
 ### Is the covariation linear? 
-ggscatter(alphadiv.corr, x = "bact.rich", y = "vir.rich", 
+ggscatter(alphadiv.corr, y = "cyan.rich", x = "vir.rich", 
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Bacterial richness", ylab = "Viral richness", title = "Correlation between viral and bacterial alpha diversity")
+          ylab = "Cyanobacterial richness", xlab = "Viral richness", title = "Correlation between viral and bacterial Shannon diversity")
 #Yes, from the plot the relationship is linear. 
 #situations where the scatter plots show curved patterns, dealing with nonlinear association b/w the 2 variables.
 
