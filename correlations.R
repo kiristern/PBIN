@@ -137,21 +137,14 @@ richness.corr
 
 ###### Mantel test #####
 # https://www.flutterbys.com.au/stats/tut/tut15.2.html
-## Need to run fromscrach_cyano.R
 
+cyano <- cyano_ps %>% otu_table()
+dim(cyano)
+colnames(cyano)
 
-### RM RARE ####
-phage <- filt_vir
+phage <- viral_physeq %>% otu_table()
 dim(phage)
 colnames(phage)
-
-#filter bact to rm rare
-print(bact_physeq)
-filt_bact <- filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
-
-bact <- filt_bact %>% otu_table()
-dim(bact)
-colnames(bact)
 
 #remove sample ID at beginning
 colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
@@ -159,28 +152,34 @@ colnames(phage) <- gsub("_", ".", colnames(phage))
 
 
 #select cols that match dates
-# bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
-# dim(bact_keep)
-phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
+# cyano_keep <- cyano[,(colnames(cyano) %in% colnames(phage))]
+# dim(cyano_keep)
+phage_keep <- phage[,(colnames(phage) %in% colnames(cyano))]
 dim(phage_keep)
 
-tbact_keep <- t(bact)
+tcyano_keep <- t(cyano)
 tphage_keep <- t(phage_keep)
 sum(is.na(tphage_keep))
 
-dist_vir<-sqrt(vegdist(tphage_keep, method = "bray"))
-dist_bac<-sqrt(vegdist(tbact_keep, method = "bray"))
+#make sure same sample length
+cyan.ps <- prune_samples(rownames(sample_data(cyano_ps)) %in% rownames(meta2), cyano_ps)
+vir.ps <- prune_samples(sample_data(viral_physeq)$description %in% rownames(meta2), viral_physeq)
+
+sample_names(vir.ps) <- sample_data(vir.ps)$description
+
+dist_vir<-sqrt(phyloseq::distance(vir.ps, "jsd"))
+dist_cyan<-sqrt(phyloseq::distance(cyan.ps, "jsd"))
 
 plot(dist_vir, dist_bac)
 abline(lm(dist_vir ~ dist_bac))
 
-bact.mantel <- mantel(dist_vir, dist_bac, perm=1000)
-bact.mantel
+cyano.mantel <- mantel(dist_vir, dist_bac, perm=1000)
+cyano.mantel
 
 
 #plot
-hist(bact.mantel$perm)
-abline(v=bact.mantel$statistic)
+hist(cyano.mantel$perm)
+abline(v=cyano.mantel$statistic)
 
 
 # #generate correlogram (multivariate correlation plot)
@@ -191,41 +190,6 @@ abline(v=bact.mantel$statistic)
 # mtext("Viral distances", 1, line = 3)
 # mtext("Bacterial distances", 2, line=3)
 # abline(lm(data.dist ~ env.dist))
-
-
-
-#### MANTEL FOR CYANO ####
-print(bact_physeq)
-cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
-
-filt_cyano_ps <- filter_taxa(cyano_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
-filt_cyano <- filt_cyano_ps %>% otu_table() 
-
-cyno <- filt_cyano
-dim(cyno)
-
-
-# #select cols that match dates
-# cyano_keep <- cyno[,(colnames(cyno) %in% colnames(phage))]
-# dim(cyano_keep)
-
-tcyano_keep <- t(cyno)
-
-dim(tphage_keep)
-dim(tcyano_keep)
-
-# dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
-dist_cyano<-sqrt(vegdist(tcyano_keep, method = "bray"))
-
-plot(dist_vir, dist_cyano)
-abline(lm(dist_vir ~ dist_cyano))
-
-cyano.mantel <- mantel(dist_vir, dist_cyano, perm=1000)
-cyano.mantel
-
-#plot
-hist(cyano.mantel$perm)
-abline(v=cyano.mantel$statistic)
 
 
 
