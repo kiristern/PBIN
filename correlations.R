@@ -68,61 +68,56 @@ shapiro.test(alphadiv.corr$cyan.rich) # => p = 0.034
 shapiro.test(alphadiv.corr$vir.rich) # => p = 0.016
 #p-values <0.05 implying that the distribution of the data are significantly different from normal distribution. 
 #In other words, we cannot assume the normality.
+hist(alphadiv.corr$cyan.rich)
+hist(alphadiv.corr$vir.rich)
 
 #Visual inspection of the data normality 
 ggqqplot(alphadiv.corr$cyan.rich, ylab = "cyan.rich")
 ggqqplot(alphadiv.corr$vir.rich, ylab = "vir.rich")
 
-richness.corr <- cor.test(alphadiv.corr$cyan.rich, alphadiv.corr$vir.rich, method = "spearman")
+richness.corr <- cor.test(alphadiv.corr$cyan.rich, alphadiv.corr$vir.rich, method = "spearman", exact = F)
 richness.corr
-# p-val = 0.02084 < 0.05, therefore bact rich and vir rich are signif correlated with a corr coeff (rho) of -0.2076
+# p-val = 0.02084 < 0.05, therefore cyano rich and vir rich are signif correlated with a corr coeff (rho) of -0.2076
 
 
 
 
 
 
-#Correlation Species-Env
-spec <- abund_clean_env_hel[,2:68]
-env <- abund_clean_env_hel[,71:86]
-# Define data sets to cross-correlate
-x <- as.matrix(spec)
-y <- as.matrix(env)
-# Cross correlate data sets
-correlations <- associate(x, y, method = "spearman", mode = "matrix", p.adj.threshold = 0.05, n.signif = 1)
-# Or, alternatively, the same output is also available in a handy table format
-correlation.table <- associate(x, y, method = "spearman", mode = "table", p.adj.threshold = 0.05, n.signif = 1)
-kable(head(correlation.table))
 
-
-#### Hellinger Transformed & filtered ####
-#transformed viral and cyano table with hellinger:
-tcyano_helli_filt <- t(cyano_helli_filt)
-dim(tcyano_helli_filt)
-tvir_helli_filt <- t(vir_helli_filt)
-dim(tvir_helli_filt)
-
-#set to same dims
-vir_hel_filt<- tvir_helli_filt[rownames(tvir_helli_filt) %in% rownames(tcyano_helli_filt),]
-dim(vir_hel_filt)
-#vir_hel_filt <- read.csv("vir_hel_filt.csv", header = T, row.names = 1)
-colnames(vir_hel_filt) <- paste0("vir_", colnames(vir_hel_filt))
-
-cyano_hel_filt <- tcyano_helli_filt[rownames(tcyano_helli_filt) %in% rownames(tvir_helli_filt),]
-dim(cyano_hel_filt)
-#cyano_hel_filt <- read.csv("cyano_hel_filt.csv", header=T, row.names = 1)
-
-#https://microbiome.github.io/tutorials/Heatmap.html
-helli_filt_corr <- associate(vir_hel_filt, cyano_hel_filt, method = "spearman", mode = "table", p.adj.threshold = 0.05, n.signif = 1)
-head(helli_filt_corr)
-heat(helli_filt_corr)
-
-corr.filt <- helli_filt_corr %>% filter(Correlation > 0.6)
-corr.filt[order(corr.filt$X2),]
-
-unique(corr.filt$X1)
-unique(corr.filt$X2)
-
+# #### Hellinger Transformed & filtered ####
+# dm_ps <- subset_taxa(bact_physeq, Genus == "g__Dolichospermum" | Genus=="g__Microcystis")
+# dmps_helli <- transform(dm_ps, transform = "hellinger", target = "OTU")
+# dm_helli <- dmps_helli %>% otu_table()
+# 
+# #transformed viral and cyano table with hellinger:
+# tdm_helli <- t(dm_helli)
+# dim(tdm_helli)
+# tvir_helli_filt <- t(vir_helli_filt)
+# dim(tvir_helli_filt)
+# 
+# #set to same dims
+# vir_hel_filt<- tvir_helli_filt[rownames(tvir_helli_filt) %in% rownames(tdm_helli),]
+# dim(vir_hel_filt)
+# #vir_hel_filt <- read.csv("vir_hel_filt.csv", header = T, row.names = 1)
+# colnames(vir_hel_filt) <- paste0("vir_", colnames(vir_hel_filt))
+# 
+# cyano_hel <- tdm_helli[rownames(tdm_helli) %in% rownames(tvir_helli_filt),]
+# dim(cyano_hel)
+# #cyano_hel_filt <- read.csv("cyano_hel_filt.csv", header=T, row.names = 1)
+# 
+# #https://microbiome.github.io/tutorials/Heatmap.html
+# helli_filt_corr <- associate(vir_hel_filt, cyano_hel, method = "spearman", mode = "table", p.adj.threshold = 0.05, n.signif = 1)
+# head(helli_filt_corr)
+# heat(helli_filt_corr)
+# 
+# corr.filt <- helli_filt_corr %>% filter(Correlation > 0.6)
+# corr.filt[order(corr.filt$X2),]
+# 
+# unique(corr.filt$X1)
+# unique(corr.filt$X2)
+# 
+# heat(corr.filt, "X1", "X2", fill = "Correlation", star = "p.adj", p.adj.threshold = 0.05)
 
 
 
