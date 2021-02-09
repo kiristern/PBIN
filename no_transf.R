@@ -258,7 +258,7 @@ plot_ordination(physeq = viral_physeq,
                 title = "NMDS of Lake Champlain viral Communities")+
   geom_point(aes(color=Years), alpha=0.5, size=4)
  # geom_point(colour="grey90", size=1.5)
-nmds$stress #0.219 too high -- no convergence
+nmds$stress #0.219 too high -- no convergence. high stress value means that the algorithm had a hard time representing the distances between samples in 2 dimensions (anything <0.2 is considered acceptable)
 
 
 
