@@ -208,24 +208,41 @@ wilco$p.value
 
 ##BETA ORDINATION###
 #heatmap_distance
-dist = sqrt(phyloseq::distance(viral_physeq, "bray"))
+# dist = sqrt(phyloseq::distance(viral_physeq, "bray"))
+# 
+# #ordination_betadiversity_PCOA
+# #PCOA need to be done with Euclidean metric distance
+# pcoa=ordinate(viral_physeq, "PCoA", distance=dist)
+# 
+# plot_ordination(viral_physeq, dist, color  = "Years") + 
+#   theme_bw() + 
+#   scale_colour_manual(values = c("red","blue", "green","brown","purple","yellow","black","grey","pink", "orange")) + 
+#   geom_point(size = 2) + 
+#   scale_shape_manual(values=c(8, 16, 6)) + 
+#   theme(axis.text.x  = element_text(vjust=0.5, size=12), 
+#         axis.text.y  = element_text(vjust=0.5, size=12), 
+#         axis.title.x = element_text(size = 15, face="bold", color="black"),
+#         axis.title.y = element_text(size=15,face="bold",color="black"))
 
-#ordination_betadiversity_PCOA
-#PCOA need to be done with Euclidean metric distance
-pcoa=ordinate(viral_physeq, "PCoA", distance=dist)
 
-plot_ordination(viral_physeq, dist, color  = "Years") + 
-  theme_bw() + 
-  scale_colour_manual(values = c("red","blue", "green","brown","purple","yellow","black","grey","pink", "orange")) + 
-  geom_point(size = 2) + 
-  scale_shape_manual(values=c(8, 16, 6)) + 
-  theme(axis.text.x  = element_text(vjust=0.5, size=12), 
-        axis.text.y  = element_text(vjust=0.5, size=12), 
-        axis.title.x = element_text(size = 15, face="bold", color="black"),
-        axis.title.y = element_text(size=15,face="bold",color="black"))
+#### PERMANOVA ####
+#http://deneflab.github.io/MicrobeMiseq/demos/mothur_2_phyloseq.html#permanova
+library(vegan)
+package.version("vegan")
+citation("vegan")
+viral_physeq %>% sample_data() %>% head
+jsd <- sqrt(phyloseq::distance(viral_physeq, method = "jsd")) #jsd is more robust to sampling depth
+sampledf <- data.frame(sample_data(viral_physeq)) #make a df from the sample_data
+adonis(jsd ~ Period, data = sampledf)
+
+#homogeneity of dispersion test
+betadisp <- betadisper(jsd, sampledf$Period)
+permutest(betadisp)
 
 
 
+#### Shannon diversity ####
+vir_shannon <- estimate_richness(viral_physeq, measures="Shannon")
 
 
 
@@ -265,111 +282,6 @@ print(p)
 # plot_composition(transform(filt_virseq, "compositional"), 
 #                  plot.type = "barplot", sample.sort = "neatmap", label=F)
 
-
-
-
-
-###### Mantel test #####
-# https://www.flutterbys.com.au/stats/tut/tut15.2.html
-## Need to run fromscrach_cyano.R
-
-
-### RM RARE ####
-phage <- filt_vir
-dim(phage)
-colnames(phage)
-
-#filter bact to rm rare
-print(bact_physeq)
-filt_bact <- filter_taxa(bact_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
-
-bact <- filt_bact %>% otu_table()
-dim(bact)
-colnames(bact)
-
-#remove sample ID at beginning
-colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
-colnames(phage) <- gsub("_", ".", colnames(phage))
-
-
-#select cols that match dates
-# bact_keep <- bact[,(colnames(bact) %in% colnames(phage))]
-# dim(bact_keep)
-phage_keep <- phage[,(colnames(phage) %in% colnames(bact))]
-dim(phage_keep)
-
-tbact_keep <- t(bact)
-tphage_keep <- t(phage_keep)
-sum(is.na(tphage_keep))
-
-dist_vir<-sqrt(vegdist(tphage_keep, method = "bray"))
-dist_bac<-sqrt(vegdist(tbact_keep, method = "bray"))
-
-plot(dist_vir, dist_bac)
-abline(lm(dist_vir ~ dist_bac))
-
-bact.mantel <- mantel(dist_vir, dist_bac, perm=1000)
-bact.mantel
-
-
-#plot
-hist(bact.mantel$perm)
-abline(v=bact.mantel$statistic)
-
-
-# #generate correlogram (multivariate correlation plot)
-# plot(data.dist, env.dist, type="n")
-# points(data.dist, env.dist, pch=20)
-# # axis(1 )
-# # axis(2, las=1)
-# mtext("Viral distances", 1, line = 3)
-# mtext("Bacterial distances", 2, line=3)
-# abline(lm(data.dist ~ env.dist))
-
-
-
-#### MANTEL FOR CYANO ####
-print(bact_physeq)
-cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
-
-filt_cyano_ps <- filter_taxa(cyano_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
-filt_cyano <- filt_cyano_ps %>% otu_table() 
-
-cyno <- filt_cyano
-dim(cyno)
-
-
-# #select cols that match dates
-# cyano_keep <- cyno[,(colnames(cyno) %in% colnames(phage))]
-# dim(cyano_keep)
-
-tcyano_keep <- t(cyno)
-
-dim(tphage_keep)
-dim(tcyano_keep)
-
-# dist_vir<-sqrt(vegdist(phage_keep, method = "bray"))
-dist_cyano<-sqrt(vegdist(tcyano_keep, method = "bray"))
-
-plot(dist_vir, dist_cyano)
-abline(lm(dist_vir ~ dist_cyano))
-
-cyano.mantel <- mantel(dist_vir, dist_cyano, perm=1000)
-cyano.mantel
-
-#plot
-hist(cyano.mantel$perm)
-abline(v=cyano.mantel$statistic)
-
-
-
-
-
-
-##### Procrustes #####
-
-protest(dist_vir,dist_cyano)
-protest(dist_vir,dist_bac)
 
 
 
