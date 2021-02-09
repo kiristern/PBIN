@@ -138,29 +138,6 @@ richness.corr
 ###### Mantel test #####
 # https://www.flutterbys.com.au/stats/tut/tut15.2.html
 
-cyano <- cyano_ps %>% otu_table()
-dim(cyano)
-colnames(cyano)
-
-phage <- viral_physeq %>% otu_table()
-dim(phage)
-colnames(phage)
-
-#remove sample ID at beginning
-colnames(phage) <- sub("*._*._*._*._*._*._*._","", colnames(phage))
-colnames(phage) <- gsub("_", ".", colnames(phage))
-
-
-#select cols that match dates
-# cyano_keep <- cyano[,(colnames(cyano) %in% colnames(phage))]
-# dim(cyano_keep)
-phage_keep <- phage[,(colnames(phage) %in% colnames(cyano))]
-dim(phage_keep)
-
-tcyano_keep <- t(cyano)
-tphage_keep <- t(phage_keep)
-sum(is.na(tphage_keep))
-
 #make sure same sample length
 cyan.ps <- prune_samples(rownames(sample_data(cyano_ps)) %in% rownames(meta2), cyano_ps)
 vir.ps <- prune_samples(sample_data(viral_physeq)$description %in% rownames(meta2), viral_physeq)
