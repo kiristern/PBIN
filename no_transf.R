@@ -206,6 +206,12 @@ wilco$p.value
 
 
 
+#### Shannon diversity ####
+vir_shannon <- estimate_richness(viral_physeq, measures="Shannon")
+
+
+
+
 ##BETA ORDINATION###
 #heatmap_distance
 # dist = sqrt(phyloseq::distance(viral_physeq, "bray"))
@@ -241,8 +247,21 @@ permutest(betadisp)
 
 
 
-#### Shannon diversity ####
-vir_shannon <- estimate_richness(viral_physeq, measures="Shannon")
+### NMDS ###
+nmds <- ordinate(physeq = viral_physeq,
+                 method = "NMDS",
+                 distance = "jsd")
+plot_ordination(physeq = viral_physeq,
+                ordination = nmds,
+                color = "Years",
+                #shape = "Site",
+                title = "NMDS of Lake Champlain viral Communities")+
+  geom_point(aes(color=Years), alpha=0.5, size=4)
+ # geom_point(colour="grey90", size=1.5)
+nmds$stress #0.219 too high -- no convergence
+
+
+
 
 
 
