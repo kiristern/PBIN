@@ -248,15 +248,18 @@ permutest(betadisp)
 
 
 ### NMDS ###
-nmds <- ordinate(physeq = viral_physeq,
-                 method = "NMDS",
-                 distance = "jsd")
+nmds=metaMDS(comm = sqrt(phyloseq::distance(viral_physeq, "jsd")), k=3, trymax = 100)
+# nmds <- ordinate(physeq = viral_physeq,
+#                  method = "NMDS",
+#                  distance = "jsd",
+#                  trymax=500)
 plot_ordination(physeq = viral_physeq,
                 ordination = nmds,
                 color = "Years",
                 #shape = "Site",
                 title = "NMDS of Lake Champlain viral Communities")+
-  geom_point(aes(color=Years), alpha=0.5, size=4)
+  geom_point(aes(color=Years))+
+  scale_color_brewer(palette = "Paired")
  # geom_point(colour="grey90", size=1.5)
 nmds$stress #0.219 too high -- no convergence. high stress value means that the algorithm had a hard time representing the distances between samples in 2 dimensions (anything <0.2 is considered acceptable)
 
