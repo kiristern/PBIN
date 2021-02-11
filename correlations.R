@@ -85,39 +85,47 @@ richness.corr
 
 
 
-# #### Hellinger Transformed & filtered ####
-# dm_ps <- subset_taxa(bact_physeq, Genus == "g__Dolichospermum" | Genus=="g__Microcystis")
-# dmps_helli <- transform(dm_ps, transform = "hellinger", target = "OTU")
-# dm_helli <- dmps_helli %>% otu_table()
-# 
-# #transformed viral and cyano table with hellinger:
-# tdm_helli <- t(dm_helli)
-# dim(tdm_helli)
-# tvir_helli_filt <- t(vir_helli_filt)
-# dim(tvir_helli_filt)
-# 
-# #set to same dims
-# vir_hel_filt<- tvir_helli_filt[rownames(tvir_helli_filt) %in% rownames(tdm_helli),]
-# dim(vir_hel_filt)
-# #vir_hel_filt <- read.csv("vir_hel_filt.csv", header = T, row.names = 1)
-# colnames(vir_hel_filt) <- paste0("vir_", colnames(vir_hel_filt))
-# 
-# cyano_hel <- tdm_helli[rownames(tdm_helli) %in% rownames(tvir_helli_filt),]
-# dim(cyano_hel)
-# #cyano_hel_filt <- read.csv("cyano_hel_filt.csv", header=T, row.names = 1)
-# 
-# #https://microbiome.github.io/tutorials/Heatmap.html
-# helli_filt_corr <- associate(vir_hel_filt, cyano_hel, method = "spearman", mode = "table", p.adj.threshold = 0.05, n.signif = 1)
-# head(helli_filt_corr)
-# heat(helli_filt_corr)
-# 
-# corr.filt <- helli_filt_corr %>% filter(Correlation > 0.6)
-# corr.filt[order(corr.filt$X2),]
-# 
-# unique(corr.filt$X1)
-# unique(corr.filt$X2)
-# 
-# heat(corr.filt, "X1", "X2", fill = "Correlation", star = "p.adj", p.adj.threshold = 0.05)
+#### Hellinger Transformed & filtered ####
+#dm_ps <- subset_taxa(bact_physeq, Genus == "g__Dolichospermum" | Genus=="g__Microcystis")
+bact_helli <- transform(bact_physeq, transform = "hellinger", target = "OTU")
+bact_helli_filt = filter_taxa(bact_helli, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+cya_helli_filt <- subset_taxa(bact_helli_filt, Phylum == "p__Cyanobacteria")
+c_helli_filt <- cya_helli_filt %>% otu_table()
+
+#change colID to match
+virps_helli_filt
+sample_names(virps_helli_filt) <- sample_data(virps_helli_filt)$description
+vir_helli_filt <- virps_helli_filt %>% otu_table()
+
+tc_helli_filt <- t(c_helli_filt)
+dim(tc_helli_filt)
+tvir_helli_filt <- t(vir_helli_filt)
+dim(tvir_helli_filt)
+
+#set to same dims
+vir_hel_filt<- tvir_helli_filt[rownames(tvir_helli_filt) %in% rownames(tc_helli_filt),]
+dim(vir_hel_filt)
+colnames(vir_hel_filt) <- paste0("vir_", colnames(vir_hel_filt))
+# write.csv(vir_hel_filt, "vir_hel_filt.csv")
+# vir_hel_filt <- read.csv("vir_hel_filt.csv", header = T, row.names = 1)
+
+cyano_hel_filt <- tc_helli_filt[rownames(tc_helli_filt) %in% rownames(tvir_helli_filt),]
+dim(cyano_hel)
+#write.csv(cyano_hel_filt, "cyano_hel_filt.csv")
+#cyano_hel_filt <- read.csv("cyano_hel_filt.csv", header=T, row.names = 1)
+
+#https://microbiome.github.io/tutorials/Heatmap.html
+helli_filt_corr <- associate(vir_hel_filt, cyano_hel_filt, method = "spearman", mode = "table", p.adj.threshold = 0.05, n.signif = 1)
+head(helli_filt_corr)
+heat(helli_filt_corr)
+
+corr.filt <- helli_filt_corr %>% filter(Correlation > 0.6)
+corr.filt[order(corr.filt$X2),]
+
+unique(corr.filt$X1)
+unique(corr.filt$X2)
+
+heat(corr.filt, "X1", "X2", fill = "Correlation", star = "p.adj", p.adj.threshold = 0.05)
 
 
 
@@ -147,10 +155,10 @@ sample_names(vir.ps) <- sample_data(vir.ps)$description
 dist_vir<-sqrt(phyloseq::distance(vir.ps, "jsd"))
 dist_cyan<-sqrt(phyloseq::distance(cyan.ps, "jsd"))
 
-plot(dist_vir, dist_bac)
-abline(lm(dist_vir ~ dist_bac))
+plot(dist_vir, dist_cyan)
+abline(lm(dist_vir ~ dist_cyan))
 
-cyano.mantel <- mantel(dist_vir, dist_bac, perm=1000)
+cyano.mantel <- mantel(dist_vir, dist_cyan, method = "spearman", perm=1000)
 cyano.mantel
 
 
@@ -170,11 +178,6 @@ abline(v=cyano.mantel$statistic)
 
 
 
-
-
-
 ##### Procrustes #####
-
-protest(dist_vir,dist_cyano)
-protest(dist_vir,dist_bac)
+protest(dist_vir,dist_cyan)
 
