@@ -185,6 +185,7 @@ SimpleRareToPrev.f=function(otu_fp,abund_thresh = 0.005, abund_thresh_ALL=FALSE,
 
 #select all the conditionally rare ASVs from phyloseq object
 crare_virps <- subset_taxa(viral_physeq, (rownames(tax_table(viral_physeq)) %in% cond_rare$OTUID))
+nonrare_virps <- subset_taxa(viral_physeq, !(rownames(tax_table(viral_physeq)) %in% cond_rare$OTUID))
 tcrare_virps <- t(crare_virps)
 
 #store data in timeseries object
