@@ -27,13 +27,150 @@
 #Step 1.
 #load required R packages: vegan, TSA. 
 library(vegan)
+library(TSA)
 
 #Step 2.
 #Place the input file and script in the same working directory to run this script.  Change the working directory in R to match where the files have been placed.
 
 #Step 3.
 #Load the necessary functions into your R workspace, contained in a separate file, "rare_fncs.R" 
-source("../rare_fncs.R")
+#source("../rare_fncs.R")
+
+#####
+#16 Oct 2014 bug fix.  ALS.  MaxRel filter was updated.  Also added option:  can discover of CRT based on MaxRel calculated from dataset with all OTUs OR dataset with only non-singleton OTUs.
+####
+
+#function to make relative abundance table - load into workspace
+makeRFtable.f=function(data){
+  cSum1<-colSums(data)
+  
+  #define an empty matrix to put your RF values into
+  newdata<-matrix(0,dim(data)[1], dim(data)[2])
+  
+  #Assign the same column and row names to the new matrix.
+  colnames(newdata)<-colnames(data)
+  rownames(newdata)<-rownames(data)
+  
+  #Each cell will be divided by the column sum.
+  for (i in 1:length(data)){
+    newdata[,i] <- data[,i]/cSum1[i]
+  }
+  
+  return(newdata)
+}
+###
+
+
+#Rare to Prevalent OTUs
+SimpleRareToPrev.f=function(otu_fp,abund_thresh = 0.005, abund_thresh_ALL=FALSE,b_thresh = 0.90, rdp_lastcol=TRUE){
+  
+  #Read in files
+  otu=read.table(otu_fp, header=TRUE, check.names=FALSE, row.names=1, sep="\t")
+  
+  #If provided, remove rdp ids and save
+  if(rdp_lastcol==TRUE){
+    rdp=otu[,ncol(otu)]
+    otu=otu[,-ncol(otu)]
+  }
+  
+  
+  #remove empty rows
+  tmp=otu[rowSums(otu)>0,]
+  no.otus=nrow(tmp)
+  
+  if(rdp_lastcol==TRUE){
+    rdp2=rdp[rowSums(otu)>0]
+  }
+  
+  #Remove singletons
+  otu.nosigs=tmp[rowSums(tmp)>1,]
+  
+  if(rdp_lastcol==TRUE){
+    rdp3=rdp2[rowSums(tmp)>1]
+  }else{
+    rdp3=NULL
+  }
+  
+  
+  #how many are left after singletons?
+  no.sigs=nrow(otu.nosigs)
+  
+  
+  #Make a rel abundance table - with the full dataset
+  otu.rel=makeRFtable.f(tmp)
+  #reduce the rel. abundance table to omit singletons
+  otu.rel2=otu.rel[is.element(row.names(otu.rel), row.names(otu.nosigs)),]
+  
+  #loop for each OTU to calculate Coefficent of bimodality
+  #For efficiency, loops through singleton-omitted dataset (singletons will not have rare-to-prevalent dynamics)
+  out=NULL
+  for(j in 1:nrow(otu.nosigs)){
+    
+    x=as.numeric(otu.nosigs[j,])
+    k=kurtosis(x)
+    s=skewness(x)
+    
+    #calculate the coefficient of bimodality for each OTU
+    b=(1+(s^2))/(k+3)
+    
+    #determine whether OTU max and median relative abundance (based on full dataset, otu.rel)
+    x2=as.numeric(otu.rel[j,])
+    mx.rel.all=max(x2)
+    med.rel.all=median(x2)
+    
+    x3=as.numeric(otu.rel2[j,])
+    mx.rel.ns=max(x3)
+    med.rel.ns=median(x3)
+    
+    out=rbind(out,c(row.names(otu.nosigs)[j],b,mx.rel.all, med.rel.all, mx.rel.ns, med.rel.ns))
+  }
+  
+  #print(dim(out))
+  #print(head(out))
+  out=as.data.frame(out)
+  colnames(out)=c("OTUID","CoefficientOfBimodality","MaxRel_All", "MedianRel_All", "MaxRel_NoSingletons", "MedianRel_NoSingletons")
+  
+  if(rdp_lastcol==TRUE){
+    out=cbind(out, rdp3)
+    colnames(out)[7]="TaxonomicAssignment"
+  }
+  
+  #Filter 1: for at least one rel. abundance greater than abund_thresh (default = 0.005).  The default uses the whole dataset MaxRel (abund_thresh_ALL=TRUE), another option is the singleton-removed dataset.
+  if(abund_thresh_ALL==TRUE){
+    at="ALL"
+    out.filter=out[as.numeric(as.vector(out[,"MaxRel_All"])) >= abund_thresh,]
+    print(dim(out.filter))
+  }else{
+    at="NOSIG"
+    out.filter=out[as.numeric(as.vector(out[,"MaxRel_NoSingletons"])) >= abund_thresh,]
+    print(dim(out.filter))
+  }
+  
+  #Filter 2: for coefficient of bimodality greater than b_thresh (default = 0.90)
+  out.filter=out.filter[as.numeric(as.vector(out.filter[,"CoefficientOfBimodality"])) >= b_thresh,]
+  print(dim(out.filter))
+  
+  write.table(out.filter, paste("ResultsFile_ConditionallyRareOTUID_", abund_thresh, "_", b_thresh, "_", at, ".txt", sep=""), quote=FALSE, sep="\t", row.names=FALSE)
+  
+  
+  print("No. conditionally rare OTUs")
+  print(nrow(out.filter))
+  
+  print("No. total OTUs")
+  print(no.otus)
+  
+  print("Proportion conditional rare / total OTUs")
+  print(nrow(out.filter)/no.otus)
+  
+  print("No singleton OTUs")
+  print(no.sigs)
+  
+  print("Proportion conditionally rare / non-singletonOTUs")
+  print(nrow(out.filter)/no.sigs)
+  return(out.filter)
+  
+} 
+
 
 #Step 4.  
 #Change the options below to match your dataset.  The options are:  
@@ -44,7 +181,20 @@ source("../rare_fncs.R")
 #rdp_lastcol - Use TRUE if the last column of the dataset contains the taxonomic assignments of OTUs, use FALSE if not
 #Then,to run the script, copy and paste the command into the R console:
 
-SimpleRareToPrev.f(otu_fp="virps.txt",abund_thresh=0.005, abund_thresh_ALL=FALSE,b_thresh=0.90, rdp_lastcol=FALSE)
+(cond_rare <- SimpleRareToPrev.f(otu_fp="ASVs_counts_copy.tsv",abund_thresh=0.005, abund_thresh_ALL=FALSE,b_thresh=0.90, rdp_lastcol=FALSE))
+
+#select all the conditionally rare ASVs from phyloseq object
+crare_virps <- otu_table(viral_physeq)[row.names(viral_physeq %>% otu_table()) %in% cond_rare$OTUID, ]
+tcrare_virps <- t(crare_virps)
+
+#store data in timeseries object
+ts_rare <- ts(tcrare_virps)
+
+ts_rare$sample <- row.names(ts_rare)
+
+ts_condrare <- reshape2::melt(ts_rare, id="sample")
+ggplot(ts_condrare) +
+  geom_line(aes(x=Var1, y=value, group=Var2, color=Var2))
 
 
 #plot ASV over time
