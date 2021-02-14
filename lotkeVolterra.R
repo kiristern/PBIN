@@ -9,7 +9,7 @@ X1rm
 corr.ts[,!(names(corr.ts) %in% rm.col)]
 
 head(vir.corr <- ASV_count[(rownames(ASV_count) %in% X1rm),])
-tvir.corr <- as.data.frame(t(colsamp2date(vir.corr))) #apply colsamp2date custom function (no_transf.R) to change sample col names to dates
+tvir.corr <- t(colsamp2date(vir.corr)) #apply colsamp2date custom function (no_transf.R) to change sample col names to dates
 
 cyano.corr <- cyano_counts[c("ASV_260"),]
 head(tcyano.corr <- t(cyano.corr))
@@ -21,7 +21,6 @@ names(corr.ts)[names(corr.ts) == "Row.names"] <- "Date"
 corr.ts$Date <- as.Date(as.character(corr.ts$Date), "%d.%m.%Y") 
 ### add all dates
 timeser <- merge(data.frame(Date = as.Date(min(corr.ts$Date):max(corr.ts$Date), "1970-1-1")), corr.ts, by = "Date", all = T)
-
 
 
 #break up into own cols
