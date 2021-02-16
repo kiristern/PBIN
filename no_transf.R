@@ -12,7 +12,6 @@ colsamp2date <- function(tab2format){
 ##################################
 
 library(dplyr)
-library(tidyverse)
 
 setwd("~/Documents/GitHub/PBIN/data")
 
@@ -209,7 +208,28 @@ wilco$p.value
 #### Shannon diversity ####
 vir_shannon <- estimate_richness(viral_physeq, measures="Shannon")
 
+vir_shannon$sample <- rownames(vir_shannon)
+vir_shannon$Years <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', rownames(vir_shannon)) #rm everything after 4th _
+vir_shannon$Years <- sub(".*[/_]", "", vir_shannon$Years) #remove everything before 3rd _
+# gsub("^.*\\_","", vir_shannon$Years) #another way to do same thing
+vir_shannon$date <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', rownames(vir_shannon))
+vir_shannon$date <- gsub("^[^_]*_", "",vir_shannon$date) #remove sample name -- just keep date
+vir_shannon$date <- as.Date(vir_shannon$date, format="%d_%m_%Y")
+  
+head(vir_shannon)
 
+library(lubridate)
+m <- month(vir_shannon$date)
+d <- day(vir_shannon$date)
+md <- paste(m, d, sep="-")
+
+ggplot(vir_shannon, aes(x = forcats::fct_inorder(sample), y = Shannon, color = Years))+ #fct_inorder ensures plotting in order of sample date
+  geom_point(size=0.5)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
+        plot.title = element_text(hjust = 0.5))+ #center title
+  ggtitle("Shannon diversity")+
+  scale_x_discrete(labels = md, name="Sample date")+ #change x-axis sample name to Month-Day
+  scale_y_continuous(name="Shannon diversity")
 
 
 ##BETA ORDINATION###
@@ -239,10 +259,10 @@ citation("vegan")
 viral_physeq %>% sample_data() %>% head
 jsd <- sqrt(phyloseq::distance(viral_physeq, method = "jsd")) #jsd is more robust to sampling depth
 sampledf <- data.frame(sample_data(viral_physeq)) #make a df from the sample_data
-adonis(jsd ~ Period, data = sampledf)
+adonis(jsd ~ Years, data = sampledf)
 
 #homogeneity of dispersion test
-betadisp <- betadisper(jsd, sampledf$Period)
+betadisp <- betadisper(jsd, sampledf$Years)
 permutest(betadisp)
 
 
@@ -261,7 +281,7 @@ plot_ordination(physeq = viral_physeq,
   geom_point(aes(color=Years))+
   scale_color_brewer(palette = "Paired")
  # geom_point(colour="grey90", size=1.5)
-nmds$stress #0.219 too high -- no convergence. high stress value means that the algorithm had a hard time representing the distances between samples in 2 dimensions (anything <0.2 is considered acceptable)
+nmds$stress #0.1432 good -- convergence. high stress value means that the algorithm had a hard time representing the distances between samples in 2 dimensions (anything <0.2 is considered acceptable)
 
 
 
