@@ -182,6 +182,7 @@ SimpleRareToPrev.f=function(otu_fp,abund_thresh = 0.005, abund_thresh_ALL=FALSE,
 #Then,to run the script, copy and paste the command into the R console:
 
 (cond_rare <- SimpleRareToPrev.f(otu_fp="/Users/kiristern/Documents/GitHub/PBIN/data/ASVs_counts_copy.tsv",abund_thresh=0.005, abund_thresh_ALL=FALSE,b_thresh=0.90, rdp_lastcol=FALSE))
+length(low_abundance(ASV_count, detection=0.5/100))
 
 #select all the conditionally rare ASVs from phyloseq object
 crare_virps <- subset_taxa(viral_physeq, (rownames(tax_table(viral_physeq)) %in% cond_rare$OTUID))
