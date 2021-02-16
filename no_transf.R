@@ -110,7 +110,7 @@ ba_vir_df = data.frame("richness" = (ba %>% summary)$estimate,
                         "Lower" = (ba %>% summary)$lower,
                        "sample"= viral_physeq %>% sample_data %>% get_variable("description"))
 head(ba_vir_df)
-ggplot(ba_vir_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ #fct_inorder ensures plotting in order of sample date
+ggplot(ba_vir_df, aes(x = forcats::fct_inorder(sample), y = richness, color = Years))+ #fct_inorder ensures plotting in order of sample date
   geom_point(size=0.5)+
   geom_errorbar(aes(ymin=richness-abs(richness-Lower), ymax=richness+abs(richness-Upper), width=0.01))+ 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
@@ -131,27 +131,27 @@ ba_year = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
   scale_y_continuous(name = "Observed richness")
 
 
-
-
+#boxplot years
+means <- aggregate(ba_observed_richness ~ Years, ba_year, mean)
+means$step <- 1:nrow(means)
 
 #finding linear regression:
 #http://r-statistics.co/Linear-Regression.html 
-fit <- lm(ba_observed_richness ~ Years, data = ba_year)
+fit <- lm(ba_observed_richness ~ step , data = means)
 coefs <- coef(fit)
 summary(fit)
-
 #get r2
 (r2 = signif(summary(fit)$adj.r.squared))
 #get p-value
-# (pval <- signif(summary(fit)$p.value)) #wrong! coef[2,4] != p-val
+(pval <- signif(summary(fit)$coefficients[2,4]))
 
 (ba_plot <-  ggplot(ba_year, aes(x = Years, y = ba_observed_richness))+
     geom_point()+
     geom_abline(intercept = coefs[1], slope = coefs[2])+
-    labs(title = paste("Adj R2 = ", r2)))
+    labs(title = paste("Adj R2 = ", r2,
 #"Intercept =", signif(coefs[1]),
 #"Slope =", signif(coefs[2]),
-# "p-value =", pval)))
+"p-value =", pval)))
 #geom_crossbar()
 ba_plot + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                        geom="crossbar", width=0.5) + theme_minimal()
@@ -230,6 +230,41 @@ ggplot(vir_shannon, aes(x = forcats::fct_inorder(sample), y = Shannon, color = Y
   ggtitle("Shannon diversity")+
   scale_x_discrete(labels = md, name="Sample date")+ #change x-axis sample name to Month-Day
   scale_y_continuous(name="Shannon diversity")
+
+
+#boxplot years
+means <- aggregate(Shannon ~ Years, vir_shannon, mean)
+means$step <- 1:nrow(means)
+
+#finding linear regression:
+#http://r-statistics.co/Linear-Regression.html 
+fit <- lm(Shannon ~ step , data = means)
+coefs <- coef(fit)
+summary(fit)
+names(summary(fit)) #see calls you can make
+
+#get r2
+(r2 = signif(summary(fit)$adj.r.squared))
+#get p-value
+(pval <- signif(summary(fit)$coefficients[2,4]))
+
+#plotting with reg
+(shannon_plot <-  ggplot(vir_shannon, aes(x = Years, y = Shannon))+
+    geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
+                                 geom="crossbar", width=0.5) + theme_minimal()+
+  ggtitle("Shannon diversity by year")+
+  theme(plot.title = element_text(hjust=0.5))+
+  scale_y_continuous(name = "Shannon diversity")+
+  geom_abline(intercept = 3.17091146, slope =  0.04626449)+
+  labs(title = paste("Adj R2 = ", r2,
+                     "p-value =", pval))
+
+
+
+
+
+
+
 
 
 ##BETA ORDINATION###
