@@ -157,6 +157,10 @@ vircyn.pos2 <- corr.tab2 %>%
   filter(weight > 0)
 head(vircyn.pos2)
 
+vircyn.all2 <- corr.tab2 %>% 
+  filter(across(to, ~ !grepl('vir_', .))) %>%
+  filter(across(from, ~grepl('vir_', .)))
+
 
 #plot vircyn connections with weights only
 vircyn.plot3 <- graph_from_data_frame(vircyn.all, directed = TRUE, vertices = NULL)
@@ -167,11 +171,16 @@ plot_network(vircyn.plot)
 vircyn.plot2 <- graph_from_data_frame(vircyn.pos2, directed = TRUE, vertices = NULL)
 plot_network(vircyn.plot2)
 
+vircyn.plot4 <- graph_from_data_frame(vircyn.all2, directed = TRUE, vertices = NULL)
+
+
 #get dtype for doli-micro
 library(stringr)
 which(as.data.frame(str_count(vircyn.pos2$to, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
 
 uniq.vircyn2 <- unique(vircyn.pos2$to)
+
+uniq.vircyn3 <- unique(vircyn.all2$to)
 
 repdm <- list()
 for (j in str_count(uniq.vircyn2, "doli_")){
@@ -183,6 +192,9 @@ for (j in str_count(uniq.vircyn2, "doli_")){
 }
 repdm <- unlist(repdm)
 head(repdm, n=8)
+
+dtype4 <- as.factor(c(rep("Phage", length(unique(vircyn.all2[,1]))), repdm))
+otu.id4 <- colnames(spie2$est$data)
 
 dtype2 <- as.factor(c(rep("Phage", length(unique(vircyn.pos2[,1]))), repdm))
 otu.id2 <- c(as.character(vircyn.pos2[,1]), as.character(vircyn.pos2[,2]))
@@ -206,6 +218,7 @@ range(spiec.deg)
 
 spiec.deg3 <- igraph::degree(vircyn.plot3)
 
+spiec.deg4 <- igraph::degree(vircyn.plot4)
 
 # dd <- degree.distribution(vircyn.plot)
 # plot(0:(length(dd)-1), dd, ylim=c(0,1), type='b', 
@@ -262,9 +275,22 @@ ggnet2(vircyn.plot3,
        node.size = spiec.deg3,
        size.legend = "Degree of Centrality",
        size.cut = 6,
-       edge.size = abs(vircyn.all[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.pos$weight > 0, 1, 2), edge.label = "edge.lty",
+       edge.size = abs(vircyn.all[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all$weight > 0, 1, 2),
        label = otu.id3, label.size = 1)+
   ggtitle("Viral and Cyanobacterial correlation network")
+
+ggnet2(vircyn.plot4,
+       color = dtype4, palette = c("Phage" = "#E1AF00", "Dolichospermum" = "red", "Microcystis" = "steelblue"), 
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = spiec.deg4,
+       size.legend = "Degree of Centrality",
+       size.cut = 6,
+       edge.size = abs(vircyn.all2[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all2$weight > 0, 1, 2),
+       label = otu.id4, label.size = 1)+
+  ggtitle("Viral and Microcystis/Dolichospermum correlation network")
+
   
 #Check which OTUs are part of different modules.
 #https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
@@ -275,14 +301,23 @@ clusters
 
 clusters2<-cluster_fast_greedy(as.undirected(vircyn.plot2))
 
+clusters3<- cluster_fast_greedy(as.undirected(vircyn.plot3), weights = abs(E(vircyn.plot3)$weight))
+
+clusters4<- cluster_fast_greedy(as.undirected(vircyn.plot4), weights = abs(E(vircyn.plot4)$weight))
+
 modularity(clusters)
 modularity(clusters2)
+modularity(clusters3)
+modularity(clusters4)
+
 
 #modularity matrix
 B = modularity_matrix(vircyn.plot, membership(clusters))
+# B2 = modularity_matrix(vircyn.plot2, membership(clusters2))
+# round(B2[1,],5)
+# B3 = modularity_matrix(vircyn.plot3, membership(clusters3))
+# B4 = modularity_matrix(vircyn.plot4, membership(clusters4))
 
-B2 = modularity_matrix(vircyn.plot2, membership(clusters2))
-round(B2[1,],5)
 #membership of nodes
 membership(clusters2)
 #number of communities
@@ -323,6 +358,37 @@ ggnet2(vircyn.plot,
        label = otu.id, label.size = 1)+
   ggtitle("Viral with Cyanobacterial correlation network by clusters")
   #guides(size=FALSE)
+
+ggnet2(vircyn.plot3,
+       color = membership(clusters3),
+       alpha=0.75,
+       shape = factor(dtype3),
+       shape.legend = "Type",
+       node.size = spiec.deg3,
+       size.legend = "Degree of Centrality",
+       size.cut = 8,
+       edge.size = abs(vircyn.all[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all$weight > 0, 1, 2),
+       label = otu.id3, label.size = 1)+
+  ggtitle("Viral with Cyanobacterial correlation network by clusters")
+#guides(size=FALSE)
+
+ggnet2(vircyn.plot4,
+       color = membership(clusters4),
+       alpha=0.75,
+       shape = factor(dtype4),
+       shape.legend = "Type",
+       node.size = spiec.deg4,
+       size.legend = "Degree of Centrality",
+       size.cut = 8,
+       edge.size = abs(vircyn.all2[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all2$weight > 0, 1, 2),
+       label = otu.id4, label.size = 1)+
+  ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")
+
+
+
+
+
+
 
 #plot dendogram
 plot_dendrogram(clusters)
