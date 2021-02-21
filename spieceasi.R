@@ -145,6 +145,11 @@ vircyn.pos <- corr.tab %>%
   filter(weight > 0)
 head(vircyn.pos)
 
+vircyn.all <- corr.tab %>% 
+  filter(across(to, ~ !grepl('vir_', .))) %>%
+  filter(across(from, ~grepl('vir_', .)))
+head(vircyn.pos)
+
 vircyn.pos2 <- corr.tab2 %>% 
   filter(across(to, ~ !grepl('vir_', .))) %>%
   filter(across(from, ~grepl('vir_', .))) %>%
@@ -154,6 +159,8 @@ head(vircyn.pos2)
 
 
 #plot vircyn connections with weights only
+vircyn.plot3 <- graph_from_data_frame(vircyn.all, directed = TRUE, vertices = NULL)
+
 vircyn.plot <- graph_from_data_frame(vircyn.pos, directed = TRUE, vertices = NULL)
 plot_network(vircyn.plot)
 
@@ -184,6 +191,9 @@ otu.id2 <- c(as.character(vircyn.pos2[,1]), as.character(vircyn.pos2[,2]))
 dtype <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), rep("Cyanobacteria", length(unique(vircyn.pos[,2])))))
 otu.id <- colnames(spie$est$data)
 
+dtype3 <- as.factor(c(rep("Phage", length(unique(vircyn.all[,1]))), rep("Cyanobacteria", length(unique(vircyn.all[,2])))))
+otu.id3 <- colnames(spie$est$data)
+
 #https://ramellose.github.io/networktutorials/workshop_MDA.html
 #Network centrality: degree centrality (ie. degree = number of connections a node has)
 spiec.deg2 <- igraph::degree(vircyn.plot2)
@@ -193,6 +203,9 @@ range(spiec.deg2)
 spiec.deg <- igraph::degree(vircyn.plot)
 hist(spiec.deg)
 range(spiec.deg)
+
+spiec.deg3 <- igraph::degree(vircyn.plot3)
+
 
 # dd <- degree.distribution(vircyn.plot)
 # plot(0:(length(dd)-1), dd, ylim=c(0,1), type='b', 
@@ -241,6 +254,17 @@ ggnet2(vircyn.plot,
        label = otu.id, label.size = 1)+
   ggtitle("Viral and Cyanobacterial correlation network")
 
+ggnet2(vircyn.plot3,
+       color = dtype3, palette = c("Phage" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = spiec.deg3,
+       size.legend = "Degree of Centrality",
+       size.cut = 6,
+       edge.size = abs(vircyn.all[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.pos$weight > 0, 1, 2), edge.label = "edge.lty",
+       label = otu.id3, label.size = 1)+
+  ggtitle("Viral and Cyanobacterial correlation network")
   
 #Check which OTUs are part of different modules.
 #https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
