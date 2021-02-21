@@ -115,21 +115,21 @@ FG.ig2 <- adj2igraph(Matrix::drop0(getRefit(spie2)),
 #plot_network(FG.ig, list(virps_filt, cyanops_filt))
 
 #postive weights only:
-weights.pos <- (1-Matrix::summary(t(bm))[,3])/2
+weights.pos <- (1-Matrix::summary(t(bm2))[,3])/2
 FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie2)),
                     edge.attr=list(weight=weights.pos),
                     vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
 #plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
 
-corr.tab <- as_data_frame(FG.ig, what="edges")
+corr.tab <- igraph::as_data_frame(FG.ig, what="edges")
 
-corr.tab2 <- as_data_frame(FG.ig2, what="edges")
+corr.tab2 <- igraph::as_data_frame(FG.ig2, what="edges")
 head(corr.tab2)
 
 # write.graph(FG.ig2,"spieceasi.dolimic.txt",format="ncol")
 # head(corr.tab <- read.table("spieceasi.ncol.txt"))
 # 
-# vircyn.pos <- corr.tab %>% 
+# vircyn.pos <- corr.tab %>%
 #   filter(across(V1, ~ grepl('vir_', .))) %>%
 #   filter(across(V2, ~!grepl('vir_', .))) %>%
 #   rename(weight = V3) %>%
@@ -137,6 +137,7 @@ head(corr.tab2)
 # head(vircyn.pos)
 
 #isolate for viral-cyano interactions only
+library(dplyr)
 vircyn.pos <- corr.tab %>% 
   filter(across(to, ~ !grepl('vir_', .))) %>%
   filter(across(from, ~grepl('vir_', .))) %>%
@@ -151,10 +152,6 @@ vircyn.pos2 <- corr.tab2 %>%
   filter(weight > 0)
 head(vircyn.pos2)
 
-spe.top25 <- head(vircyn.pos[order(vircyn.pos$weight, decreasing = T),], n=25)
-
-spe.top25.2 <- head(vircyn.pos2[order(vircyn.pos2$weight, decreasing = T),], n=25)
-
 
 #plot vircyn connections with weights only
 vircyn.plot <- graph_from_data_frame(vircyn.pos, directed = TRUE, vertices = NULL)
@@ -164,6 +161,7 @@ vircyn.plot2 <- graph_from_data_frame(vircyn.pos2, directed = TRUE, vertices = N
 plot_network(vircyn.plot2)
 
 #get dtype for doli-micro
+library(stringr)
 which(as.data.frame(str_count(vircyn.pos2$to, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
 
 uniq.vircyn2 <- unique(vircyn.pos2$to)
@@ -184,7 +182,7 @@ otu.id2 <- c(as.character(vircyn.pos2[,1]), as.character(vircyn.pos2[,2]))
 
 # get dtype for cyano
 dtype <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), rep("Cyanobacteria", length(unique(vircyn.pos[,2])))))
-otu.id <- c(as.character(vircyn.pos[,1]), as.character(vircyn.pos[,2]))
+otu.id <- colnames(spie$est$data)
 
 #https://ramellose.github.io/networktutorials/workshop_MDA.html
 #Network centrality: degree centrality (ie. degree = number of connections a node has)
@@ -216,7 +214,7 @@ plaw.fit
 #indicate that scale-freeness decreases the network’s sensitivity to random attacks. 
 #However, we still do not know to what extent biological networks follow a power law as we have few true biological networks.
 #Lima-Mendez and van Helden (2009) (https://pubs.rsc.org/en/content/articlehtml/2009/mb/b908681a) discuss some of the weaknesses of this theory.
-
+library(ggplot2)
 library(ggnet)
 ggnet2(vircyn.plot2,
        color = dtype2, palette = c("Phage" = "#E1AF00", "Dolichospermum" = "red", "Microcystis" = "steelblue"), 
@@ -260,15 +258,20 @@ modularity(clusters2)
 B = modularity_matrix(vircyn.plot, membership(clusters))
 
 B2 = modularity_matrix(vircyn.plot2, membership(clusters2))
-round(B[1,],5)
+round(B2[1,],5)
 #membership of nodes
-membership(clusters)
+membership(clusters2)
 #number of communities
-length(clusters)
+length(clusters2)
 #size of communities
-sizes(clusters)
+sizes(clusters2)
 #crossing edges
-crossing(clusters, vircyn.plot)
+crossing(clusters2, vircyn.plot2)
+
+#see which edge connects two different communities
+which(crossing(clusters2, vircyn.plot2) == T)
+length(which(crossing(clusters2, vircyn.plot2) == T)) #number of cross community interactions
+
 
 #plot communities without shaded regions
 ggnet2(vircyn.plot2,
@@ -305,4 +308,12 @@ clustersOneIndices=which(clusters$membership==1)
 clustersOneOtus=clusters$names[clustersOneIndices]
 clustersOneOtus
 #OR
-clusters[1]
+clusters[2]
+
+
+names(clusters2$membership)[clusters2$membership > 1]
+clusters2
+
+
+
+
