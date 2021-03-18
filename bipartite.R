@@ -10,10 +10,18 @@ bipartite::visweb(web)
 
 web2 <- get.adjacency(vircyn.plot2, sparse=F, attr = "weight")
 
-plotweb(sortweb(web2, sort.order = "inc"), method="normal", text.rot=90, col.low="green", col.high="blue")
+plotweb(sortweb(web2, sort.order = "inc"), method="normal", text.rot=90, col.low="#1F78B4", col.high="#B2DF8A", col.interaction="#A6CEE3", labsize = 0.4)
 
 
 
+### Nestedness ###
+setwd("/Users/kiristern/Documents/GitHub/PBIN/FALCON-master/R")
+source("InteractiveMode.R")
+web2
+ind
+ind$Matrix$Matrix #contains matirx that was entered by the user
+ind$NestedConfig #contains the most nested configuration of the input matrix (by sorting by row and column degree) and the corresponding row and column indexes swaps from the input matrix
+ind$Bin_t1 #show the stats associated with the null ensemble, where 1 indcates that the null model 1 was used
 
 # #https://rpubs.com/pjmurphy/317838
 # V(vircyn.plot2)$type <- V(vircyn.plot2)$name %in% vircyn.pos[,1]

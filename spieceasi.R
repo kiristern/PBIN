@@ -37,11 +37,13 @@ taxa_names(micro_ps) <- paste0("micro_", taxa_names(micro_ps))
 doli.ps <- prune_samples(rownames(sample_data(doli_ps)) %in% rownames(meta2), doli_ps)
 micro.ps <- prune_samples(rownames(sample_data(micro_ps)) %in% rownames(meta2), micro_ps)
 
-#reorder phyloseq by chronological date
+#reorder phyloseq by chronological date (run no_trans_bact.R)
 otu_table(virps) <- otu_table(virps)[,toorder]
 otu_table(doli.ps) <- otu_table(doli.ps)[,toorder]
 otu_table(micro.ps) <- otu_table(micro.ps)[,toorder]
 
+
+bact_filt <- filter_taxa(bact_physeq, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
 
 virps_filt <- filter_taxa(virps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
 
@@ -65,6 +67,12 @@ spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=12
                                                                   subsample.ratio=0.8,
                                                                   seed = 1234,
                                                                   ncores=4))
+
+spie3 <- spiec.easi(list(virps_filt, bact_filt), method='mb', nlambda=125,
+                   lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
+                                                               subsample.ratio=0.8,
+                                                               seed = 1234,
+                                                               ncores=4))
 
 spie2$select$stars$summary #if coming up with empty network: b/c max value of the StARS summary statistic never crosses the default threshold (0.05). fix by lowering lambda.min.ratio to explore denser networks
 getStability(spie)
@@ -148,14 +156,15 @@ head(vircyn.pos)
 vircyn.all <- corr.tab %>% 
   filter(across(to, ~ !grepl('vir_', .))) %>%
   filter(across(from, ~grepl('vir_', .)))
-head(vircyn.pos)
+head(vircyn.all)
+write.csv(vircyn.all, "virbact.cov.csv")
 
 vircyn.pos2 <- corr.tab2 %>% 
   filter(across(to, ~ !grepl('vir_', .))) %>%
   filter(across(from, ~grepl('vir_', .))) %>%
   #rename(weight = V3) %>%
   filter(weight > 0)
-head(vircyn.pos2)
+head(vircyn.all2)
 
 vircyn.all2 <- corr.tab2 %>% 
   filter(across(to, ~ !grepl('vir_', .))) %>%
@@ -328,9 +337,10 @@ sizes(clusters2)
 crossing(clusters2, vircyn.plot2)
 
 #see which edge connects two different communities
-which(crossing(clusters2, vircyn.plot2) == T)
+com <- as.data.frame(which(crossing(clusters2, vircyn.plot2) == T))
+com$link <- row.names(com)
 length(which(crossing(clusters2, vircyn.plot2) == T)) #number of cross community interactions
-
+com <- data.frame(do.call('rbind', strsplit(as.character(com$link),'|',fixed=TRUE)))
 
 #plot communities without shaded regions
 ggnet2(vircyn.plot2,
