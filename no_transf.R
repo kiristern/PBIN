@@ -293,7 +293,6 @@ df.l$Years <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', df.l$samples.l) #rm eve
 df.l$Years <- sub(".*[/_]", "", df.l$Years) #remove everything before 3rd _
 # gsub("^.*\\_","", vir_shannon$Years) #another way to do same thing
 date <- unique(df.l$samples.l)
-
 date <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', date)
 date <- gsub("^[^_]*_", "",date) #remove sample name -- just keep date
 date <- as.Date(date, format="%d_%m_%Y")
@@ -301,6 +300,17 @@ library(lubridate)
 m <- month(date)
 d <- day(date)
 md <- paste(d, m, sep="-")
+
+df.p$Years <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', df.p$samples.p) #rm everything after 4th _
+df.p$Years <- sub(".*[/_]", "", df.p$Years) #remove everything before 3rd _
+# gsub("^.*\\_","", vir_shannon$Years) #another way to do same thing
+datep <- unique(df.p$samples.p)
+datep <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', datep)
+datep <- gsub("^[^_]*_", "",datep) #remove sample name -- just keep date
+datep <- as.Date(datep, format="%d_%m_%Y")
+mp <- month(datep)
+dp <- day(datep)
+mdp <- paste(dp, mp, sep="-")
 
 head(df.l)
 head(df.p)
@@ -327,7 +337,15 @@ ggplot(df.l, aes(x = samples.l, y = abundance, fill = ASV_ID.l))+
 ggplot(df.p, aes(x = samples.p, y = abundance, fill = ASV_ID.p))+
   geom_bar(stat="identity", show.legend = T)+
   scale_fill_manual("ASV", values = dd.col)+
-  theme_minimal()
+  theme_minimal()+
+  facet_grid(~ Years, scales = "free")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
+        plot.title = element_text(hjust = 0.5),#center title
+        # legend.text = element_text(size = 5),
+        legend.key.size = unit(5, 'mm'))+ 
+  ggtitle("Relative abundance of top 20 ASV in littoral zone")+
+  ylab("Relative Abundance")+
+  scale_x_discrete(labels = mdp, name="Sample date")
 
 
 
