@@ -317,7 +317,9 @@ ggplot(df.l, aes(x = samples.l, y = abundance, fill = ASV_ID.l))+
   theme_minimal()+
   facet_grid(~ Years, scales = "free")+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
-        plot.title = element_text(hjust = 0.5))+ #center title
+        plot.title = element_text(hjust = 0.5),#center title
+       # legend.text = element_text(size = 5),
+        legend.key.size = unit(5, 'mm'))+ 
   ggtitle("Relative abundance of top 20 ASV in littoral zone")+
   ylab("Relative Abundance")+
   scale_x_discrete(labels = md, name="Sample date")
