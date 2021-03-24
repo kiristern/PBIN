@@ -84,7 +84,9 @@ print(viral_physeq)
 summarize_phyloseq(viral_physeq)
 #sparsity is how populated is the data with zeros.
 
-
+# separate into pelagic and littoral phyloseq objects
+vir_ps_lit <- subset_samples(viral_physeq, Site == "Littoral")
+vir_ps_pel <- subset_samples(viral_physeq, Site == "Pelagic")
 
 
 
@@ -358,43 +360,46 @@ ggplot(df.p, aes(x = samples.p, y = abundance, fill = ASV_ID.p))+
 #### ALPHA DIV ####
 library(breakaway)
 
-ba.dates <- meta %>% select(Date)
+ba.dates <- meta %>% dplyr::select(Date)
+
+vir_ps_lit 
+vir_ps_pel 
 
 #richness by year
 ba <- breakaway(viral_physeq)
 ba
 
-ymd <- viral_physeq %>% sample_data %>% get_variable("Date")
+ymd <- vir_ps_lit %>% sample_data %>% get_variable("Date")
 library(lubridate)
 m <- month(ymd)
 d <- day(ymd)
-md <- paste(m, d, sep="-")
+md <- paste( d, m, sep="-")
 
 ba_vir_df = data.frame("richness" = (ba %>% summary)$estimate,
                         #"sample" = (ba %>% summary)$sample_names,
                         "error" = (ba %>% summary)$error,
-                        "Years" = viral_physeq %>% sample_data %>% get_variable("Years"),
+                        "Years" = vir_ps_lit %>% sample_data %>% get_variable("Years"),
                         "Upper" = (ba %>% summary)$upper,
                         "Lower" = (ba %>% summary)$lower,
-                       "sample"= viral_physeq %>% sample_data %>% get_variable("description"))
+                       "sample"= vir_ps_lit %>% sample_data %>% get_variable("description"))
 head(ba_vir_df)
 ggplot(ba_vir_df, aes(x = forcats::fct_inorder(sample), y = richness, color = Years))+ #fct_inorder ensures plotting in order of sample date
-  geom_point(size=0.5)+
-  geom_errorbar(aes(ymin=richness-abs(richness-Lower), ymax=richness+abs(richness-Upper), width=0.01))+ 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
+  geom_point(size=3)+
+  geom_errorbar(aes(ymin=richness-abs(richness-Lower), ymax=richness+abs(richness-Upper), width=0.05))+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+ #center title
-  ggtitle("Breakaway richness by sample")+
+  ggtitle("Breakaway richness of pelagic samples")+
   scale_x_discrete(labels = md, name="Sample date")+ #change x-axis sample name to Month-Day
   scale_y_continuous(name="Richness")
 
 
 #boxplot years
 ba_year = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
-                     "Years" = viral_physeq %>% sample_data %>% get_variable("Years"))
+                     "Years" = vir_ps_lit %>% sample_data %>% get_variable("Years"))
 (ba_plot <-  ggplot(ba_year, aes(x = Years, y = ba_observed_richness))+
     geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                                  geom="crossbar", width=0.5) + theme_minimal()+
-  ggtitle("Observed richness by year")+
+  ggtitle("Observed richness by year (pelagic)")+
   theme(plot.title = element_text(hjust=0.5))+
   scale_y_continuous(name = "Observed richness")
 
@@ -416,13 +421,12 @@ summary(fit)
 (ba_plot <-  ggplot(ba_year, aes(x = Years, y = ba_observed_richness))+
     geom_point()+
     geom_abline(intercept = coefs[1], slope = coefs[2])+
-    labs(title = paste("Adj R2 = ", r2,
-#"Intercept =", signif(coefs[1]),
-#"Slope =", signif(coefs[2]),
-"p-value =", pval)))
-#geom_crossbar()
-ba_plot + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
-                       geom="crossbar", width=0.5) + theme_minimal()
+    annotate(geom="text", x = 3.5, y=620, label= paste("Adj R2 = ", r2,
+                                                     "p-val = ", pval))+
+    labs(title = "Observed richness by year (littoral)")+
+    stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
+                       geom="crossbar", width=0.5)+ 
+    theme_minimal())
 
 
 
@@ -473,8 +477,60 @@ wilco$p.value
 
 
 
+### sampling depth (reads per sample)
+#https://www.nicholas-ollberding.com/post/introduction-to-the-statistical-analysis-of-microbiome-data-in-r/
+summary(sample_sums(viral_physeq)) #large difference in number of reads, min=22; max=130183
+sort(sample_sums(viral_physeq))
+
+rich_depth <- data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
+                         "richness" = (ba %>% summary)$estimate)
+
+#finding linear regression:
+fit <- lm(richness ~ total_reads , data = rich_depth)
+coefs <- coef(fit)
+summary(fit)
+#get r2
+(r2 = signif(summary(fit)$adj.r.squared))
+#get p-value
+(pval <- signif(summary(fit)$coefficients[2,4]))
+
+ggplot(data = rich_depth,
+       aes(x = total_reads, y = richness)) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "\nTotal Reads", y = "Richness\n",
+       title = "Observed richness by sampling depth")+
+    geom_abline(intercept = coefs[1], slope = coefs[2])+
+    annotate(geom="text", x = 2e+04, y=700, size = 3,
+             label= paste("Adj R2 = ", r2,
+                           "p-val = ", pval))
+
+
+
+ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
+                         "Years" = viral_physeq %>% sample_data %>% get_variable("Years")),
+       aes(x = total_reads, y = Years)) +
+  geom_bar(stat = "identity") +
+  labs(x = "\nTotal Reads", y = "Year\n")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 10), #rotate axis labels
+        plot.title = element_text(hjust = 0.5))+ #center title
+  ggtitle("Number of reads per Year")+
+  coord_flip()
+
+
+
+
+
+
+
+
+
+
 #### Shannon diversity ####
-vir_shannon <- estimate_richness(viral_physeq, measures="Shannon")
+vir_ps_pel
+vir_ps_lit
+
+vir_shannon <- estimate_richness(vir_ps_pel, measures="Shannon")
 
 vir_shannon$sample <- rownames(vir_shannon)
 vir_shannon$Years <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', rownames(vir_shannon)) #rm everything after 4th _
@@ -489,13 +545,13 @@ head(vir_shannon)
 library(lubridate)
 m <- month(vir_shannon$date)
 d <- day(vir_shannon$date)
-md <- paste(m, d, sep="-")
+md <- paste(d, m, sep="-")
 
 ggplot(vir_shannon, aes(x = forcats::fct_inorder(sample), y = Shannon, color = Years))+ #fct_inorder ensures plotting in order of sample date
-  geom_point(size=0.5)+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
+  geom_point(size=3)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+ #center title
-  ggtitle("Shannon diversity")+
+  ggtitle("Shannon diversity of pelagic samples")+
   scale_x_discrete(labels = md, name="Sample date")+ #change x-axis sample name to Month-Day
   scale_y_continuous(name="Shannon diversity")
 
@@ -520,14 +576,61 @@ names(summary(fit)) #see calls you can make
 (shannon_plot <-  ggplot(vir_shannon, aes(x = Years, y = Shannon))+
     geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                                  geom="crossbar", width=0.5) + theme_minimal()+
-  ggtitle("Shannon diversity by year")+
+  ggtitle("Shannon diversity by year (pelagic)")+
   theme(plot.title = element_text(hjust=0.5))+
   scale_y_continuous(name = "Shannon diversity")+
-  geom_abline(intercept = 3.17091146, slope =  0.04626449)+
-  labs(title = paste("Adj R2 = ", r2,
-                     "p-value =", pval))
+  geom_abline(intercept = fit$coefficients[1], slope =  fit$coefficients[2])+
+  annotate(geom="text", x = 3, y=4.5, label= paste("Adj R2 = ", r2,
+                                                  "p-val = ", pval))+
+  labs(title = "Shannon diversity by year")
+
+#### shannon vs. depth ####
+shan <- estimate_richness(viral_physeq, measures="shannon")
+head(shan)
+
+viral_df = data.frame("shannon" = shan$Shannon,
+                      "sample" = (viral_physeq %>% sample_data)$description,
+                      "Years" = viral_physeq %>% sample_data %>% get_variable("Years"),
+                      "depth" = sample_sums(viral_physeq))
+head(viral_df)
+str(viral_df)
+ggplot(viral_df, aes(x = forcats::fct_inorder(sample), y = shannon, color = Years))+ #fct_inorder ensures plotting in order of sample date
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
+        plot.title = element_text(hjust = 0.5))+ #center title
+  ggtitle("Shannon diversity by sample")+
+  scale_x_discrete(labels = viral_physeq %>% sample_data %>% get_variable("Months"), name="Month")#change x-axis sample name to Month
+
+### sampling depth (reads per sample)
+summary(sample_sums(viral_physeq)) #large difference in number of reads, min=22; max=130183
+sort(sample_sums(viral_physeq))
+
+fit <- lm(shannon ~ depth , data = viral_df)
+coefs <- coef(fit)
+summary(fit)
+#get r2
+(r2 = signif(summary(fit)$adj.r.squared))
+#get p-value
+(pval <- signif(summary(fit)$coefficients[2,4]))
+
+ggplot(data = viral_df, aes(x = depth, y = shannon)) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(x = "\nTotal Reads", y = "Shannon\n")+
+  geom_abline(intercept = fit$coefficients[1], slope =  fit$coefficients[2])+
+  annotate(geom="text", x = 2e+04, y=4.75, label= paste("Adj R2 = ", r2,
+                                                        "p-val = ", pval))
 
 
+ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
+                         "Years" = viral_physeq %>% sample_data %>% get_variable("Years")),
+       aes(x = total_reads, y = Years)) +
+  geom_bar(stat = "identity") +
+  labs(x = "\nTotal Reads", y = "Year\n")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 10), #rotate axis labels
+        plot.title = element_text(hjust = 0.5))+ #center title
+  ggtitle("Number of reads per Year")+
+  coord_flip()
 
 
 
@@ -632,53 +735,7 @@ print(p)
 
 
 
-#### Shannon diversity ####
 
-shan <- estimate_richness(viral_physeq, measures="shannon")
-head(shan)
-
-viral_df = data.frame("shannon" = shan$Shannon,
-                         "sample" = (viral_physeq %>% sample_data)$description,
-                         "Years" = viral_physeq %>% sample_data %>% get_variable("Years"),
-                      "depth" = sample_sums(viral_physeq))
-head(viral_df)
-str(viral_df)
-ggplot(viral_df, aes(x = forcats::fct_inorder(sample), y = shannon, color = Years))+ #fct_inorder ensures plotting in order of sample date
-  geom_point()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
-        plot.title = element_text(hjust = 0.5))+ #center title
-  ggtitle("Shannon diversity by sample")+
-  scale_x_discrete(labels = viral_physeq %>% sample_data %>% get_variable("Months"), name="Month")#change x-axis sample name to Month
-
-### sampling depth (reads per sample)
-#https://www.nicholas-ollberding.com/post/introduction-to-the-statistical-analysis-of-microbiome-data-in-r/
-ggplot(viral_df, aes(x = depth, y = shannon, color = Years))+ #fct_inorder ensures plotting in order of sample date
-  geom_point()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
-        plot.title = element_text(hjust = 0.5))+ #center title
-  ggtitle("Shannon diversity by number of reads")+
-  scale_x_discrete(name="Sampling depth")#change x-axis sample name to Month
-
-summary(sample_sums(viral_physeq)) #large difference in number of reads, min=22; max=130183
-sort(sample_sums(viral_physeq))
-
-ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
-                         "observed" = estimate_richness(viral_physeq, measures="shannon")),
-                         #"Years" = viral_physeq %>% sample_data %>% get_variable("Years")),
-       aes(x = total_reads, y = Shannon)) +
-  geom_point() +
-  geom_smooth(method="lm") +
-  labs(x = "\nTotal Reads", y = "Shannon\n")
-
-ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
-                         "Years" = viral_physeq %>% sample_data %>% get_variable("Years")),
-       aes(x = total_reads, y = Years)) +
-  geom_bar(stat = "identity") +
-  labs(x = "\nTotal Reads", y = "Year\n")+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 10), #rotate axis labels
-        plot.title = element_text(hjust = 0.5))+ #center title
-  ggtitle("Number of reads per Year")+
-  coord_flip()
 
 
 
