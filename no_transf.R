@@ -107,9 +107,6 @@ vir_count_littoral <- as.data.frame(ASV_count[, (colnames(ASV_count) %in% rownam
 vir_count_pelagic <- ASV_count[, (colnames(ASV_count) %in% rownames(meta_pelagic))]
 #write.table(vir_count_pelagic, "ASV_count_pelagic.txt", row.names = T, quote = F, sep = "\t")
 
-
-
-
 #transpose ASV count table
 vir_lit <- t(vir_count_littoral)
 vir_pel <- t(vir_count_pelagic)
@@ -122,7 +119,7 @@ asv_tot.p <- colSums(vir_pel)
 asv_tot.l <- as.data.frame(asv_tot.l)
 asv_tot.p <- as.data.frame(asv_tot.p)
 
-#extract asv_id 
+#extract asv_id
 asv_id.l <- row.names(asv_tot.l)
 asv_id.p <- row.names(asv_tot.p)
 
@@ -150,37 +147,52 @@ sum(asv_tot.l$rel_ab)
 sum(asv_tot.p$rel_ab)
 
 
-#sort relative abundance from largest to smallest
-asv_tot.l <- arrange(asv_tot.l, desc(rel_ab))
+#get top 20
+topN = 20
+most_abundant_taxa <- sort(taxa_sums(vir_ps_pel), TRUE)[1:topN]
+most_abundant_taxa
+
+top20.pel <- prune_taxa(names(most_abundant_taxa), vir_ps_pel)
+
+vir_ps_lit_relab <- transform_sample_counts(top20.lit, function(x) x / sum(x))
+vir_ps_pel_relab <- transform_sample_counts(top20.pel, function(x) x / sum(x))
+
+top20.l <- top20.lit %>% otu_table()
+top20.p <- top20.pel %>% otu_table()
+
+
+# asv_tot.l <- arrange(asv_tot.l, desc(rel_ab))
 asv_tot.p <- arrange(asv_tot.p, desc(rel_ab))
-
-top20.l <- head(asv_tot.l, 20)
-top20.l
-
+#
+# top20.l <- head(asv_tot.l, 20)
+# top20.l
+#
 top20.p <- head(asv_tot.p, 20)
-top20.p
+# top20.p
 
-sum(top20.l$rel_ab)
-sum(top20.p$rel_ab)
+# sum(top20.l$rel_ab)
+# sum(top20.p$rel_ab)
 
-# write.csv(top20.l, "top20L_oct29.csv")
-# write.csv(top20.p, "top20P_oct29.csv")
+## write.csv(top20.l, "top20L_oct29.csv")
+## write.csv(top20.p, "top20P_oct29.csv")
 
-sort(top20.l$ID)
-
-top20L <- top20.l
-top20P <- top20.p
+# sort(top20.l$ID)
+#
+# top20L <- top20.l
+# top20P <- top20.p
 
 top20L <- read.csv("top20L_oct29.csv")
 head(top20L, n=2)
 top20P <- read.csv("top20P_oct29.csv")
 
 #select top20 ASVs from full df
-asv_tax.l <- vir_lit[,(colnames(vir_lit) %in% top20.l$ID)]
+#asv_tax.l <- vir_lit[,(colnames(vir_lit) %in% top20.l$ID)]
+asv_tax.l <- vir_lit[,(colnames(vir_lit) %in% rownames(top20.l))]
+
 nrow(asv_tax.l)
 ncol(asv_tax.l)
 
-asv_tax.p <- vir_pel[,(colnames(vir_pel) %in% top20.p$ID)]
+asv_tax.p <- vir_pel[,(colnames(vir_pel) %in% rownames(top20.p))]
 nrow(asv_tax.p)
 ncol(asv_tax.p)
 
@@ -207,7 +219,7 @@ head(virus_ID.l <- paste(top20L$Description, name_tax.l$ID_brackets, sep=" "))
 head(virus_ID.p <- paste(top20P$Description, name_tax.p$ID_brackets, sep=" "))
 
 #add col to name_tax df
-name_tax.l <- add_column(name_tax.l, virus_ID.l)
+name_tax.l <- tibble::add_column(name_tax.l, virus_ID.l)
 name_tax.p <- add_column(name_tax.p, virus_ID.p)
 head(name_tax.p)
 
@@ -240,7 +252,7 @@ replicate.p <- do.call("rbind", replicate(n, ASV_ID.p, simplify = FALSE))
 #replicate <- read.csv("replicate_test.csv")
 
 #add ASV_ID col to asv_rel_abun df
-asv_rel_abun_dup.l <- add_column(asv_rel_abun_dup.l, replicate.l, .before=1)
+asv_rel_abun_dup.l <- tibble::add_column(asv_rel_abun_dup.l, replicate.l, .before=1)
 asv_rel_abun_dup.p <- add_column(asv_rel_abun_dup.p, replicate.p, .before=1)
 
 #create new col named samples which duplicates rownames
@@ -248,7 +260,7 @@ samples.l <- row.names(asv_rel_abun_dup.l)
 samples.p <- row.names(asv_rel_abun_dup.p)
 
 #add col to df
-asv_rel_abun_dup.l <- add_column(asv_rel_abun_dup.l, samples.l, .before=1)
+asv_rel_abun_dup.l <- tibble::add_column(asv_rel_abun_dup.l, samples.l, .before=1)
 asv_rel_abun_dup.p <- add_column(asv_rel_abun_dup.p, samples.p, .before=1)
 
 #remove everything after "."
@@ -265,7 +277,7 @@ stacked.l <- stack(sample_abundance.l)
 stacked.p <- stack(sample_abundance.p)
 
 #add stacked to asv_rel_abun_dup df
-asv_rel_abun_dup.l <- add_column(asv_rel_abun_dup.l, stacked.l$values, .after=1)
+asv_rel_abun_dup.l <- tibble::add_column(asv_rel_abun_dup.l, stacked.l$values, .after=1)
 asv_rel_abun_dup.p <- add_column(asv_rel_abun_dup.p, stacked.p$values, .after=1)
 
 #select certain cols only
@@ -273,7 +285,7 @@ df.l <- asv_rel_abun_dup.l %>% select("samples.l", "stacked.l$values")
 df.p <- asv_rel_abun_dup.p %>% select("samples.p", "stacked.p$values")
 
 #add replicate names to df
-df.l <- add_column(df.l, replicate.l, .before=1)
+df.l <- tibble::add_column(df.l, replicate.l, .before=1)
 df.p <- add_column(df.p, replicate.p, .before=1)
 
 #rename cols
@@ -319,11 +331,11 @@ head(df.p)
 
 
 #ensure colours are the same across both plots
-dd <- union(df.l$ASV_ID.l, df.p$ASV_ID.p)
+dd <- union(df.p$ASV_ID.p, df.p$ASV_ID.p)
 dd.col <- rainbow(length(dd))
 names(dd.col) <- dd
 
-ggplot(df.l, aes(x = samples.l, y = abundance, fill = ASV_ID.l))+
+ggplot(df.p, aes(x = samples.p, y = abundance, fill = ASV_ID.p))+
   geom_bar(stat="identity", show.legend = T)+
   scale_fill_manual("ASV", values = dd.col)+
   theme_minimal()+
@@ -332,9 +344,9 @@ ggplot(df.l, aes(x = samples.l, y = abundance, fill = ASV_ID.l))+
         plot.title = element_text(hjust = 0.5),#center title
        # legend.text = element_text(size = 5),
         legend.key.size = unit(5, 'mm'))+ 
-  ggtitle("Relative abundance of top 20 ASV in littoral zone")+
+  ggtitle("Relative abundance of top 20 ASV in pelagic zone")+
   ylab("Relative Abundance")+
-  scale_x_discrete(labels = md, name="Sample date")
+  scale_x_discrete(labels = mdp, name="Sample date")
 
 ggplot(df.p, aes(x = samples.p, y = abundance, fill = ASV_ID.p))+
   geom_bar(stat="identity", show.legend = T)+
@@ -554,6 +566,7 @@ ggplot(vir_shannon, aes(x = forcats::fct_inorder(sample), y = Shannon, color = Y
   ggtitle("Shannon diversity of pelagic samples")+
   scale_x_discrete(labels = md, name="Sample date")+ #change x-axis sample name to Month-Day
   scale_y_continuous(name="Shannon diversity")
+  #facet_grid(~ Years, scales = "free")
 
 
 #boxplot years
