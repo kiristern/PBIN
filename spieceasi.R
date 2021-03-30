@@ -25,7 +25,7 @@ sample_info <- sample_data(meta2)
 #add to phyloseq object
 virps <- phyloseq(count_phy, sample_info, mock_taxa2)
 colnames(tax_table(virps)) <- c("Kingdom", "Phylum", "Class",
-                                      "Order", "Family", "Genus", "ASV")
+                                "Order", "Family", "Genus", "ASV")
 
 #taxa_names(viral_physeq) <- paste0("vir_", taxa_names(viral_physeq))
 taxa_names(doli_ps) <- paste0("doli_", taxa_names(doli_ps))
@@ -43,7 +43,8 @@ otu_table(doli.ps) <- otu_table(doli.ps)[,toorder]
 otu_table(micro.ps) <- otu_table(micro.ps)[,toorder]
 
 
-bact_filt <- filter_taxa(bact_physeq, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+bactnoCyan <- subset_taxa(bact_physeq, !Phylum == "p__Cyanobacteria")
+bactnoCyan_filt <- filter_taxa(bactnoCyan, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
 
 virps_filt <- filter_taxa(virps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
 
@@ -57,31 +58,35 @@ cyanops_filt
 
 #spiec easi
 spie <- spiec.easi(list(virps_filt, cyanops_filt), method='mb', nlambda=125,
-                    lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
-                                                                subsample.ratio=0.8,
-                                                                seed = 1234,
-                                                                ncores=4))
-
-spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=125,
-                      lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
-                                                                  subsample.ratio=0.8,
-                                                                  seed = 1234,
-                                                                  ncores=4))
-
-spie3 <- spiec.easi(list(virps_filt, bact_filt), method='mb', nlambda=125,
                    lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
                                                                subsample.ratio=0.8,
                                                                seed = 1234,
                                                                ncores=4))
 
-spie2$select$stars$summary #if coming up with empty network: b/c max value of the StARS summary statistic never crosses the default threshold (0.05). fix by lowering lambda.min.ratio to explore denser networks
-getStability(spie)
-sum(getRefit(spie2))/2
+SE_viral_cyano <- spie
+
+spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=125,
+                    lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
+                                                                subsample.ratio=0.8,
+                                                                seed = 1234,
+                                                                ncores=4))
+SE_vir_dol_mic <- spie2
+
+SE_vir_bactnoCyan <- spiec.easi(list(virps_filt, bactnoCyan_filt), method='mb', nlambda=125,
+                                lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
+                                                                            subsample.ratio=0.8,
+                                                                            seed = 1234,
+                                                                            ncores=4))
+
+
+SE_vir_dol_mic$select$stars$summary #if coming up with empty network: b/c max value of the StARS summary statistic never crosses the default threshold (0.05). fix by lowering lambda.min.ratio to explore denser networks
+getStability(SE_vir_bactnoCyan)
+sum(getRefit(SE_vir_dol_mic))/2
 
 #http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
-betaMatsym <- as.matrix(symBeta(getOptBeta(spie)))
+betaMatsym <- as.matrix(symBeta(getOptBeta(SE_viral_cyano)))
 
-betaMatsym2 <- as.matrix(symBeta(getOptBeta(spie2)))
+betaMatsym2 <- as.matrix(symBeta(getOptBeta(SE_vir_dol_mic)))
 dim(betaMatsym)
 
 #select for cyano - viral connections only
@@ -104,95 +109,149 @@ length(c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps)))
 
 #get weights
 #https://github.com/zdk123/SpiecEasi/issues/81 
-bm <- symBeta(getOptBeta(spie), mode="maxabs")
+bm <- symBeta(getOptBeta(SE_viral_cyano), mode="maxabs")
 diag(bm) <- 0
 weights <- Matrix::summary(t(bm))[,3]
-FG.ig <- adj2igraph(Matrix::drop0(getRefit(spie)),
-                     edge.attr=list(weight=weights),
-                     vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(cyanops_filt))))
+FG.ig.vir.cyn <- adj2igraph(Matrix::drop0(getRefit(SE_viral_cyano)),
+                            edge.attr=list(weight=weights),
+                            vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(cyanops_filt))))
 
-
-bm2 <- symBeta(getOptBeta(spie2), mode="maxabs")
-diag(bm2) <- 0
-weights2 <- Matrix::summary(t(bm2))[,3]
-FG.ig2 <- adj2igraph(Matrix::drop0(getRefit(spie2)),
-                    edge.attr=list(weight=weights2),
-                    vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
-
-#plot with weights
-#plot_network(FG.ig, list(virps_filt, cyanops_filt))
-
-#postive weights only:
-weights.pos <- (1-Matrix::summary(t(bm2))[,3])/2
-FG.ig.pos <- adj2igraph(Matrix::drop0(getRefit(spie2)),
-                    edge.attr=list(weight=weights.pos),
-                    vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
-#plot_network(FG.ig.pos, list(virps_filt, cyanops_filt))
-
-corr.tab <- igraph::as_data_frame(FG.ig, what="edges")
-
-corr.tab2 <- igraph::as_data_frame(FG.ig2, what="edges")
-head(corr.tab2)
-
-# write.graph(FG.ig2,"spieceasi.dolimic.txt",format="ncol")
-# head(corr.tab <- read.table("spieceasi.ncol.txt"))
-# 
-# vircyn.pos <- corr.tab %>%
-#   filter(across(V1, ~ grepl('vir_', .))) %>%
-#   filter(across(V2, ~!grepl('vir_', .))) %>%
-#   rename(weight = V3) %>%
-#   filter(weight > 0)
-# head(vircyn.pos)
+covar.vir.cyn <- igraph::as_data_frame(FG.ig.vir.cyn, what="edges")
 
 #isolate for viral-cyano interactions only
 library(dplyr)
-vircyn.pos <- corr.tab %>% 
-  filter(across(to, ~ !grepl('vir_', .))) %>%
-  filter(across(from, ~grepl('vir_', .))) %>%
-  #rename(weight = V3) %>%
-  filter(weight > 0)
-head(vircyn.pos)
-
-vircyn.all <- corr.tab %>% 
+vircyn <- covar.vir.cyn %>% 
   filter(across(to, ~ !grepl('vir_', .))) %>%
   filter(across(from, ~grepl('vir_', .)))
-head(vircyn.all)
-write.csv(vircyn.all, "virbact.cov.csv")
-
-vircyn.pos2 <- corr.tab2 %>% 
-  filter(across(to, ~ !grepl('vir_', .))) %>%
-  filter(across(from, ~grepl('vir_', .))) %>%
-  #rename(weight = V3) %>%
-  filter(weight > 0)
-head(vircyn.all2)
-
-vircyn.all2 <- corr.tab2 %>% 
-  filter(across(to, ~ !grepl('vir_', .))) %>%
-  filter(across(from, ~grepl('vir_', .)))
-
+head(vircyn)
+write.csv(vircyn, "vircyan.cov.csv")
 
 #plot vircyn connections with weights only
-vircyn.plot3 <- graph_from_data_frame(vircyn.all, directed = TRUE, vertices = NULL)
+vircyan.plot <- graph_from_data_frame(vircyn, directed = TRUE, vertices = NULL)
 
-vircyn.plot <- graph_from_data_frame(vircyn.pos, directed = TRUE, vertices = NULL)
-plot_network(vircyn.plot)
+# get dtype for cyano
+dtype.cyan <- as.factor(c(rep("Phage", length(unique(vircyn[,1]))), rep("Cyanobacteria", length(unique(vircyn[,2])))))
+otu.id.cyan <- colnames(SE_viral_cyano$est$data)
 
-vircyn.plot2 <- graph_from_data_frame(vircyn.pos2, directed = TRUE, vertices = NULL)
-plot_network(vircyn.plot2)
+#https://ramellose.github.io/networktutorials/workshop_MDA.html
+#Network centrality: degree centrality (ie. degree = number of connections a node has)
+degree.cyan <- igraph::degree(vircyan.plot)
+hist(degree.cyan)
+range(degree.cyan)
 
-vircyn.plot4 <- graph_from_data_frame(vircyn.all2, directed = TRUE, vertices = NULL)
+library(ggplot2)
+library(ggnet)
+ggnet2(vircyan.plot,
+       color = dtype.cyan, palette = c("Phage" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = degree.cyan,
+       size.legend = "Degree of Centrality",
+       size.cut = 6,
+       edge.size = abs(vircyn[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn$weight > 0, 1, 2),
+       label = otu.id.cyan, label.size = 1)+
+  ggtitle("Viral and Cyanobacterial correlation network")
 
+
+#Check which OTUs are part of different modules.
+#https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
+
+#GREEDY COMMUNITY DETECTION
+clust.cyan<- cluster_fast_greedy(as.undirected(vircyan.plot), weights = abs(E(vircyan.plot)$weight))
+modularity(clust.cyan)
+
+#modularity matrix
+B.cyan = modularity_matrix(vircyan.plot, membership(clust.cyan))
+
+ggnet2(vircyan.plot,
+       color = membership(clust.cyan),
+       alpha=0.75,
+       shape = factor(dtype.cyan),
+       shape.legend = "Type",
+       node.size = degree.cyan,
+       size.legend = "Degree of Centrality",
+       size.cut = 8,
+       edge.size = abs(vircyn[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn$weight > 0, 1, 2),
+       label = otu.id.cyan, label.size = 1)+
+  ggtitle("Viral with Cyanobacterial correlation network by clusters")
+#guides(size=FALSE)
+
+#### POSITIVE COVARIANCE BETWEEN CYANO AND VIRAL ####
+# vircyn.pos <- covar.vir.cyn %>% 
+#   filter(across(to, ~ !grepl('vir_', .))) %>%
+#   filter(across(from, ~grepl('vir_', .))) %>%
+#   #rename(weight = V3) %>%
+#   filter(weight > 0)
+# head(vircyn.pos)
+
+# vircyan.pos.plot <- graph_from_data_frame(vircyn.pos, directed = TRUE, vertices = NULL)
+# plot_network(vircyan.pos.plot)
+
+# dtype.cyan.pos <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), rep("Cyanobacteria", length(unique(vircyn.pos[,2])))))
+# otu.id <- colnames(SE_viral_cyano$est$data)
+
+#degree.cyan.pos <- igraph::degree(vircyan.pos.plot)
+
+# dd <- degree.distribution(vircyan.pos.plot)
+# plot(0:(length(dd)-1), dd, ylim=c(0,1), type='b', 
+#      ylab="Frequency", xlab="Degree", main="Degree Distributions")
+
+# ggnet2(vircyan.pos.plot,
+#        color = dtype.cyan.pos, palette = c("Phage" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
+#        alpha=0.75,
+#        #shape = factor(dtype.cyan.pos),
+#        #shape.legend = "Type",
+#        node.size = degree.cyan.pos,
+#        size.legend = "Degree of Centrality",
+#        size.cut = 6,
+#        edge.size = vircyn.pos[,3], edge.alpha = 0.5,
+#        label = otu.id, label.size = 1)+
+#   ggtitle("Viral and Cyanobacterial correlation network")
+
+#clust.cyan.pos <-cluster_fast_greedy(as.undirected(vircyan.pos.plot))
+#clust.cyan.pos
+#modularity(clust.cyan.pos)
+#B.cyan.pos = modularity_matrix(vircyan.pos.plot, membership(clust.cyan.pos))
+
+# ggnet2(vircyan.pos.plot,
+#        color = membership(clust.cyan.pos),
+#        alpha=0.75,
+#        shape = factor(dtype.cyan.pos),
+#        shape.legend = "Type",
+#        node.size = degree.cyan.pos,
+#        size.legend = "Degree of Centrality",
+#        size.cut = 8,
+#        edge.size = vircyn.pos[,3], edge.alpha = 0.5,
+#        label = otu.id, label.size = 1)+
+#   ggtitle("Viral with Cyanobacterial correlation network by clusters")
+# #guides(size=FALSE)
+
+
+bm2 <- symBeta(getOptBeta(SE_vir_dol_mic), mode="maxabs")
+diag(bm2) <- 0
+weights2 <- Matrix::summary(t(bm2))[,3]
+FG.ig.vdm <- adj2igraph(Matrix::drop0(getRefit(SE_vir_dol_mic)),
+                        edge.attr=list(weight=weights2),
+                        vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
+
+covar.vdm <- igraph::as_data_frame(FG.ig.vdm, what="edges")
+head(covar.vdm)
+
+vdm <- covar.vdm %>% 
+  filter(across(to, ~ !grepl('vir_', .))) %>%
+  filter(across(from, ~grepl('vir_', .)))
+
+vdm.plot <- graph_from_data_frame(vdm, directed = TRUE, vertices = NULL)
 
 #get dtype for doli-micro
 library(stringr)
-which(as.data.frame(str_count(vircyn.pos2$to, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
+which(as.data.frame(str_count(vdm$to, "micro_"))=="1", arr.ind=T) #see which positions micro_ are in in col 2 of df
 
-uniq.vircyn2 <- unique(vircyn.pos2$to)
-
-uniq.vircyn3 <- unique(vircyn.all2$to)
+uniq.vdm <- unique(vdm$to)
 
 repdm <- list()
-for (j in str_count(uniq.vircyn2, "doli_")){
+for (j in str_count(uniq.vdm, "doli_")){
   if (j == 1){
     repdm[length(repdm)+1] <- print("Dolichospermum")
   } else {
@@ -202,40 +261,147 @@ for (j in str_count(uniq.vircyn2, "doli_")){
 repdm <- unlist(repdm)
 head(repdm, n=8)
 
-dtype4 <- as.factor(c(rep("Phage", length(unique(vircyn.all2[,1]))), repdm))
-otu.id4 <- colnames(spie2$est$data)
+dtype.vdm <- as.factor(c(rep("Phage", length(unique(vdm[,1]))), repdm))
+otu.id.vdm <- colnames(SE_vir_dol_mic$est$data)
 
-dtype2 <- as.factor(c(rep("Phage", length(unique(vircyn.pos2[,1]))), repdm))
-otu.id2 <- c(as.character(vircyn.pos2[,1]), as.character(vircyn.pos2[,2]))
+degree.vdm <- igraph::degree(vdm.plot)
 
-# get dtype for cyano
-dtype <- as.factor(c(rep("Phage", length(unique(vircyn.pos[,1]))), rep("Cyanobacteria", length(unique(vircyn.pos[,2])))))
-otu.id <- colnames(spie$est$data)
+ggnet2(vdm.plot,
+       color = dtype.vdm, palette = c("Phage" = "#E1AF00", "Dolichospermum" = "red", "Microcystis" = "steelblue"), 
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = degree.vdm,
+       size.legend = "Degree of Centrality",
+       size.cut = 6,
+       edge.size = abs(vdm[,3]), edge.alpha = 0.5, edge.lty = ifelse(vdm$weight > 0, 1, 2),
+       label = otu.id.vdm, label.size = 1)+
+  ggtitle("Viral and Microcystis/Dolichospermum correlation network")
 
-dtype3 <- as.factor(c(rep("Phage", length(unique(vircyn.all[,1]))), rep("Cyanobacteria", length(unique(vircyn.all[,2])))))
-otu.id3 <- colnames(spie$est$data)
+clust.vdm<- cluster_fast_greedy(as.undirected(vdm.plot), weights = abs(E(vdm.plot)$weight))
 
-#https://ramellose.github.io/networktutorials/workshop_MDA.html
-#Network centrality: degree centrality (ie. degree = number of connections a node has)
-spiec.deg2 <- igraph::degree(vircyn.plot2)
-hist(spiec.deg2)
-range(spiec.deg2)
+modularity(clust.vdm)
+# B4 = modularity_matrix(vdm.plot, membership(clust.vdm))
+#membership of nodes
+membership(clust.vdm)
+#number of communities
+length(clust.vdm)
+#size of communities
+sizes(clust.vdm)
+#crossing edges
+crossing(clust.vdm, vdm.plot)
 
-spiec.deg <- igraph::degree(vircyn.plot)
-hist(spiec.deg)
-range(spiec.deg)
+#plot communities without shaded regions
+ggnet2(vdm.plot,
+       color = membership(clust.vdm),
+       alpha=0.75,
+       shape = factor(dtype.vdm),
+       shape.legend = "Type",
+       node.size = degree.vdm,
+       size.legend = "Degree of Centrality",
+       size.cut = 8,
+       edge.size = abs(vdm[,3]), edge.alpha = 0.5, edge.lty = ifelse(vdm$weight > 0, 1, 2),
+       label = otu.id.vdm, label.size = 1)+
+  ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")
 
-spiec.deg3 <- igraph::degree(vircyn.plot3)
 
-spiec.deg4 <- igraph::degree(vircyn.plot4)
 
-# dd <- degree.distribution(vircyn.plot)
-# plot(0:(length(dd)-1), dd, ylim=c(0,1), type='b', 
-#      ylab="Frequency", xlab="Degree", main="Degree Distributions")
+
+#### Viral - Doli Micro Positive ####
+# #postive weights only:
+# weights.pos <- (1-Matrix::summary(t(bm2))[,3])/2
+# FG.ig.vdm.pos <- adj2igraph(Matrix::drop0(getRefit(SE_vir_dol_mic)),
+#                             edge.attr=list(weight=weights.pos),
+#                             vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(doli.ps), taxa_names(micro.ps))))
+# #plot_network(FG.ig.vdm.pos, list(virps_filt, cyanops_filt))
+
+# vdm.pos <- covar.vdm %>% 
+#   filter(across(to, ~ !grepl('vir_', .))) %>%
+#   filter(across(from, ~grepl('vir_', .))) %>%
+#   #rename(weight = V3) %>%
+#   filter(weight > 0)
+# head(vdm.pos)
+
+# vdm.pos.plot <- graph_from_data_frame(vdm.pos, directed = TRUE, vertices = NULL)
+# plot_network(vdm.pos.plot)
+
+#uniq.vdm.pos <- unique(vdm.pos$to)
+# repdm <- list()
+# for (j in str_count(uniq.vdm, "doli_")){
+#   if (j == 1){
+#     repdm[length(repdm)+1] <- print("Dolichospermum")
+#   } else {
+#     repdm[length(repdm)+1] <- print("Microcystis")
+#   }
+# }
+# repdm <- unlist(repdm)
+
+# dtype.vdm.pos <- as.factor(c(rep("Phage", length(unique(vdm.pos[,1]))), repdm))
+# otu.id.vdm.pos <- c(as.character(vdm.pos[,1]), as.character(vdm.pos[,2]))
+
+# degree.vdm.pos <- igraph::degree(vdm.pos.plot)
+# hist(degree.vdm.pos)
+# range(degree.vdm.pos)
+
+# ggnet2(vdm.pos.plot,
+#        color = dtype.vdm.pos, palette = c("Phage" = "#E1AF00", "Dolichospermum" = "red", "Microcystis" = "steelblue"), 
+#        alpha=0.75,
+#        #shape = factor(dtype),
+#        #shape.legend = "Type",
+#        node.size = degree.vdm.pos,
+#        size.legend = "Degree of Centrality",
+#        size.cut = 4,
+#        edge.size = vdm.pos[,3], edge.alpha = 0.5,
+#        label = otu.id.vdm.pos, label.size = 1)+
+#   ggtitle("Viral and Microcystis/Dolichospermum correlation network")
+# # guides(color=FALSE)
+
+#clust.vdm.pos<-cluster_fast_greedy(as.undirected(vdm.pos.plot))
+#modularity(clust.vdm.pos)
+# B2 = modularity_matrix(vdm.pos.plot, membership(clust.vdm.pos))
+# round(B2[1,],5)
+
+# ggnet2(vdm.pos.plot,
+#        color = membership(clust.vdm.pos),
+#        alpha=0.75,
+#        shape = factor(dtype.vdm.pos),
+#        shape.legend = "Type",
+#        node.size = degree.vdm.pos,
+#        size.legend = "Degree of Centrality",
+#        #size.cut = 6,
+#        edge.size = vdm.pos[,3], edge.alpha = 0.5,
+#        label = otu.id.vdm.pos, label.size = 1)+
+#   ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")+
+#   guides(size=FALSE)
+
+### VIRAL - BACTNOCYAN ####
+#get weights
+#https://github.com/zdk123/SpiecEasi/issues/81 
+bm <- symBeta(getOptBeta(SE_vir_bactnoCyan), mode="maxabs")
+diag(bm) <- 0
+weights <- Matrix::summary(t(bm))[,3]
+FG.ig.bactnoCyan <- adj2igraph(Matrix::drop0(getRefit(SE_vir_bactnoCyan)),
+                            edge.attr=list(weight=weights),
+                            vertex.attr = list(name=c(taxa_names(virps_filt), taxa_names(bactnoCyan_filt))))
+
+covar.vir.bactnoCyan <- igraph::as_data_frame(FG.ig.bactnoCyan, what="edges")
+
+#isolate for viral-cyano interactions only
+library(dplyr)
+BnoC <- covar.vir.bactnoCyan %>% 
+  filter(across(to, ~ !grepl('vir_', .))) %>%
+  filter(across(from, ~grepl('vir_', .)))
+head(BnoC)
+write.csv(BnoC, "virbactnoCyan.cov.csv")
+
+
+
+
+
 
 
 #if the degree distribution of a network follows a power law, that network is scale-free
-plaw.fit <- fit_power_law(spiec.deg) #The fit_power_law functions fits a power law to the degree distribution of the network.
+plaw.fit <- fit_power_law(degree.cyan.pos) #The fit_power_law functions fits a power law to the degree distribution of the network.
 plaw.fit
 #The values for the fit are compared to expected values with the Kolmogorov-Smirnov test. 
 #The null hypothesis for this test is that the degree distribution is drawn from a reference distribution. 
@@ -249,171 +415,44 @@ plaw.fit
 #indicate that scale-freeness decreases the network’s sensitivity to random attacks. 
 #However, we still do not know to what extent biological networks follow a power law as we have few true biological networks.
 #Lima-Mendez and van Helden (2009) (https://pubs.rsc.org/en/content/articlehtml/2009/mb/b908681a) discuss some of the weaknesses of this theory.
-library(ggplot2)
-library(ggnet)
-ggnet2(vircyn.plot2,
-       color = dtype2, palette = c("Phage" = "#E1AF00", "Dolichospermum" = "red", "Microcystis" = "steelblue"), 
-       alpha=0.75,
-       #shape = factor(dtype),
-       #shape.legend = "Type",
-       node.size = spiec.deg2,
-       size.legend = "Degree of Centrality",
-       size.cut = 4,
-       edge.size = vircyn.pos2[,3], edge.alpha = 0.5,
-       label = otu.id2, label.size = 1)+
-  ggtitle("Viral and Microcystis/Dolichospermum correlation network")
- # guides(color=FALSE)
-
-ggnet2(vircyn.plot,
-       color = dtype, palette = c("Phage" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
-       alpha=0.75,
-       #shape = factor(dtype),
-       #shape.legend = "Type",
-       node.size = spiec.deg,
-       size.legend = "Degree of Centrality",
-       size.cut = 6,
-       edge.size = vircyn.pos[,3], edge.alpha = 0.5,
-       label = otu.id, label.size = 1)+
-  ggtitle("Viral and Cyanobacterial correlation network")
-
-ggnet2(vircyn.plot3,
-       color = dtype3, palette = c("Phage" = "#E1AF00", "Cyanobacteria" = "steelblue"), 
-       alpha=0.75,
-       #shape = factor(dtype),
-       #shape.legend = "Type",
-       node.size = spiec.deg3,
-       size.legend = "Degree of Centrality",
-       size.cut = 6,
-       edge.size = abs(vircyn.all[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all$weight > 0, 1, 2),
-       label = otu.id3, label.size = 1)+
-  ggtitle("Viral and Cyanobacterial correlation network")
-
-ggnet2(vircyn.plot4,
-       color = dtype4, palette = c("Phage" = "#E1AF00", "Dolichospermum" = "red", "Microcystis" = "steelblue"), 
-       alpha=0.75,
-       #shape = factor(dtype),
-       #shape.legend = "Type",
-       node.size = spiec.deg4,
-       size.legend = "Degree of Centrality",
-       size.cut = 6,
-       edge.size = abs(vircyn.all2[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all2$weight > 0, 1, 2),
-       label = otu.id4, label.size = 1)+
-  ggtitle("Viral and Microcystis/Dolichospermum correlation network")
-
-  
-#Check which OTUs are part of different modules.
-#https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
-
-#GREEDY COMMUNITY DETECTION
-clusters<-cluster_fast_greedy(as.undirected(vircyn.plot))
-clusters
-
-clusters2<-cluster_fast_greedy(as.undirected(vircyn.plot2))
-
-clusters3<- cluster_fast_greedy(as.undirected(vircyn.plot3), weights = abs(E(vircyn.plot3)$weight))
-
-clusters4<- cluster_fast_greedy(as.undirected(vircyn.plot4), weights = abs(E(vircyn.plot4)$weight))
-
-modularity(clusters)
-modularity(clusters2)
-modularity(clusters3)
-modularity(clusters4)
-
-
-#modularity matrix
-B = modularity_matrix(vircyn.plot, membership(clusters))
-# B2 = modularity_matrix(vircyn.plot2, membership(clusters2))
-# round(B2[1,],5)
-# B3 = modularity_matrix(vircyn.plot3, membership(clusters3))
-# B4 = modularity_matrix(vircyn.plot4, membership(clusters4))
-
-#membership of nodes
-membership(clusters2)
-#number of communities
-length(clusters2)
-#size of communities
-sizes(clusters2)
-#crossing edges
-crossing(clusters2, vircyn.plot2)
-
-#see which edge connects two different communities
-com <- as.data.frame(which(crossing(clusters2, vircyn.plot2) == T))
-com$link <- row.names(com)
-length(which(crossing(clusters2, vircyn.plot2) == T)) #number of cross community interactions
-com <- data.frame(do.call('rbind', strsplit(as.character(com$link),'|',fixed=TRUE)))
-
-#plot communities without shaded regions
-ggnet2(vircyn.plot2,
-       color = membership(clusters2),
-       alpha=0.75,
-       shape = factor(dtype2),
-       shape.legend = "Type",
-       node.size = spiec.deg2,
-       size.legend = "Degree of Centrality",
-       #size.cut = 6,
-       edge.size = vircyn.pos2[,3], edge.alpha = 0.5,
-       label = otu.id2, label.size = 1)+
-  ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")+
-  guides(size=FALSE)
-
-ggnet2(vircyn.plot,
-       color = membership(clusters),
-       alpha=0.75,
-       shape = factor(dtype),
-       shape.legend = "Type",
-       node.size = spiec.deg,
-       size.legend = "Degree of Centrality",
-       size.cut = 8,
-       edge.size = vircyn.pos[,3], edge.alpha = 0.5,
-       label = otu.id, label.size = 1)+
-  ggtitle("Viral with Cyanobacterial correlation network by clusters")
-  #guides(size=FALSE)
-
-ggnet2(vircyn.plot3,
-       color = membership(clusters3),
-       alpha=0.75,
-       shape = factor(dtype3),
-       shape.legend = "Type",
-       node.size = spiec.deg3,
-       size.legend = "Degree of Centrality",
-       size.cut = 8,
-       edge.size = abs(vircyn.all[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all$weight > 0, 1, 2),
-       label = otu.id3, label.size = 1)+
-  ggtitle("Viral with Cyanobacterial correlation network by clusters")
-#guides(size=FALSE)
-
-ggnet2(vircyn.plot4,
-       color = membership(clusters4),
-       alpha=0.75,
-       shape = factor(dtype4),
-       shape.legend = "Type",
-       node.size = spiec.deg4,
-       size.legend = "Degree of Centrality",
-       size.cut = 8,
-       edge.size = abs(vircyn.all2[,3]), edge.alpha = 0.5, edge.lty = ifelse(vircyn.all2$weight > 0, 1, 2),
-       label = otu.id4, label.size = 1)+
-  ggtitle("Viral with Microcystis and Dolichospermum correlation network by clusters")
-
-
-
-
 
 
 
 #plot dendogram
-plot_dendrogram(clusters)
+plot_dendrogram(clust.cyan.pos)
 
 #Check which OTUs are part of different modules.
-clustersOneIndices=which(clusters$membership==1)
-clustersOneOtus=clusters$names[clustersOneIndices]
-clustersOneOtus
+clust.cyan.posOneIndices=which(clust.cyan.pos$membership==1)
+clust.cyan.posOneOtus=clust.cyan.pos$names[clust.cyan.posOneIndices]
+clust.cyan.posOneOtus
 #OR
-clusters[2]
+clust.cyan.pos[2]
 
 
-names(clusters2$membership)[clusters2$membership > 1]
-clusters2
+names(clust.vdm.pos$membership)[clust.vdm.pos$membership > 1]
+clust.vdm.pos
 
 
+
+
+#see which edge connects two different communities
+com <- as.data.frame(which(crossing(clust.vdm.pos, vdm.pos.plot) == T))
+com$link <- row.names(com)
+length(which(crossing(clust.vdm.pos, vdm.pos.plot) == T)) #number of cross community interactions
+com <- data.frame(do.call('rbind', strsplit(as.character(com$link),'|',fixed=TRUE)))
+com
+
+links <- vdm[vdm$from %in% com$X1,]
+node_name <- unique(links$from)
+
+not_node_indices <- which(E(vdm.pos.plot)$start != node_name) 
+not_joined_edges <- E(vdm.pos.plot)[not_node_indices] 
+n <-delete_edges(vdm.pos.plot, not_joined_edges) 
+
+
+n1 <- make_ego_graph(vdm.pos.plot, order=1, nodes=node_name)
+n2 <- do.call(union, n1)
+
+subgraph(vdm.pos.plot, n2)
 
 
