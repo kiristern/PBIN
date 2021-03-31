@@ -45,12 +45,12 @@ dim(vir.cov.tab)
 names(vir.cov.tab)[names(vir.cov.tab) == "weight"] <- "covariance"
 # dim(gendist.table)
 
-
-ind <- which(upper.tri(d.align, diag = F), arr.ind = TRUE)
+#create df with genetic distance and covariance between unique viral ASV pairs
+indx <- which(upper.tri(d.align, diag = F), arr.ind = TRUE)
 nn <- dimnames(d.align)
-gendist.tab <- data.frame(from = nn[[1]][ind[, 1]],
-           to = nn[[2]][ind[, 2]],
-           gen.dist = d.align[ind])
+gendist.tab <- data.frame(from = nn[[1]][indx[, 1]],
+           to = nn[[2]][indx[, 2]],
+           gen.dist = d.align[indx])
 head(gendist.tab, n=20)
 dim(gendist.tab)
 df3 <- inner_join(gendist.tab, vir.cov.tab, by = c("to", "from"))
@@ -59,9 +59,10 @@ gendist.covar <- rbind(df3,df4) %>% unique()
 #write.csv(gendist.covar, "gendist.covar.csv")
 head(gendist.covar <- read.csv("gendist.covar.csv", header = T, row.names = 1))
 
-df5 <- inner_join(gendist.covar,sparc, by = c("to" = "otu_1", "from" = "otu_2"))
-df6 <- inner_join(gendist.covar, sparc, by = c("from" = "otu_1", "to" = "otu_2"))
+df5 <- inner_join(gendist.covar,sparc.signif, by = c("to" = "otu_1", "from" = "otu_2"))
+df6 <- inner_join(gendist.covar, sparc.signif, by = c("from" = "otu_1", "to" = "otu_2"))
 gendist.sparcc <- rbind(df5, df6) %>% unique()
+head(gendist.sparcc)
 #write.csv(gendist.sparcc, "gendist.sparcc.csv")
 head(gendist.sparcc <- read.csv("gendist.sparcc.csv", header = T, row.names = 1))
 
@@ -76,6 +77,9 @@ head(gendist.sparcc)
 ### plot boxplots ###
 
 #### filter limits ####
+gc <- gendist.covar %>%
+  filter(gen.dist > 0 & gen.dist <0.05)
+
 gc.pos <- gendist.covar %>%
   filter(gen.dist > 0 & gen.dist <0.05) %>%
   filter(covariance > 0)
@@ -85,24 +89,26 @@ gc.neg <- gendist.covar %>%
   filter(gen.dist > 0 & gen.dist <0.05) %>%
   filter(covariance < 0)
 
-fit <- lm(covariance ~ gen.dist , data = gc.neg)
+fit <- lm(covariance ~ gen.dist , data = gc.pos)
 coefs <- coef(fit)
 summary(fit)
 #get r2
 (r2 = signif(summary(fit)$adj.r.squared))
 #get p-value
 (pval <- signif(summary(fit)$coefficients[2,4]))
-ggplot(gc.neg, aes(x=gen.dist, y=covariance, group=gen.dist))+
-  geom_boxplot()+
+ggplot(gc.pos, aes(x=gen.dist, y=covariance, group=gen.dist))+
+  geom_violin()+
   geom_jitter()+
   stat_summary(fun=mean, geom="point", shape=23, color="cyan4", fill="cyan4")+
   geom_smooth(method = "lm", se=F, color="red", aes(group=1))+
-  labs(title = paste("Adj R2 = ", r2,
+  labs(title = paste("Adj R2 = ", r2, 
                      #"Intercept =", signif(coefs[1]),
                      "Slope =", signif(coefs[2]),
                      "p-value =", pval))
 
 
+gs <- gs.pos <- gendist.sparcc %>%
+  filter(gen.dist <0.05)
 
 gs.pos <- gendist.sparcc %>%
   filter(correlation > 0 & gen.dist <0.05)
@@ -118,60 +124,12 @@ fit <- lm(correlation ~ gen.dist , data = gs.pos)
 (pval <- signif(summary(fit)$coefficients[2,4]))
 ggplot(gs.pos, aes(x=gen.dist, y=correlation, group=gen.dist))+
   geom_point()+
-  geom_boxplot()+
+  geom_violin()+
   geom_jitter()+
   stat_summary(fun=mean, geom="point", shape=23, size = 3,color="cyan4", fill="cyan4")+
-  #geom_smooth(method = "lm", se=F, color="red", aes(group=1))+
+  geom_smooth(method = "lm", se=F, color="red", aes(group=1))+
   labs(title = paste("Adj R2 = ", r2,
                      "Slope =", signif(coefs[2]),
                       "p-value =", pval))
   # coord_cartesian(xlim = c(0.0, 0.05)) #zoom in over these coords only without rm other data points 
-
-
-
-
-
-####### clusters ASVs to form new OTUs #######
-#https://github.com/adriaaulaICM/bbmo_niche_sea/blob/master/src/analysis/nucdist_otuclustering.R
-#https://github.com/benjjneb/dada2/issues/947 
-cluster99 <- DECIPHER::IdClusters(
-  d.align,
-  method = "complete",
-  cutoff = 0.01)
-colnames(cluster99) <- "cluster99"
-cluster98<- DECIPHER::IdClusters(
-  d.align,
-  method = "complete",
-  cutoff = 0.02)
-colnames(cluster98) <- "cluster98"
-cluster97<- DECIPHER::IdClusters(
-  d.align,
-  method = "complete",
-  cutoff = 0.03)
-colnames(cluster97) <- "cluster97"
-cluster96<- DECIPHER::IdClusters(
-  d.align,
-  method = "complete",
-  cutoff = 0.04)
-colnames(cluster96) <- "cluster96"
-cluster95 <- DECIPHER::IdClusters(
-  d.align,
-  method = "complete",
-  cutoff = 0.05)
-colnames(cluster95) <- "cluster95"
-
-head(viral_clusters <- cbind(cluster99, cluster98, cluster97, cluster96, cluster95))
-
-
-
-
-
-dna <- DNAStringSet(c("ACTG", "ACCG"))
-dna
-DistanceMatrix(dna)
-# changing the output type to "dist":
-d <- DistanceMatrix(seqs, type="dist")
-head(d)
-
-
 
