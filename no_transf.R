@@ -368,6 +368,8 @@ ggplot(df.p, aes(x = samples.p, y = abundance, fill = ASV_ID.p))+
   scale_x_discrete(labels = mdp, name="Sample date")
 
 
+# Check which asv are the same across both sites
+top20L$ID[which(top20L$ID %in% top20P$ID)]
 
 
 
