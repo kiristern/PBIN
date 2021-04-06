@@ -104,7 +104,6 @@ nrow(meta_littoral)
 vir_count_littoral <- as.data.frame(ASV_count[, (colnames(ASV_count) %in% rownames(meta_littoral))])
 #write.table(vir_count_littoral, "ASV_count_littoral.txt", row.names = T, quote = F, sep = "\t")
 
-
 #transpose ASV count table
 vir_lit <- t(vir_count_littoral)
 
@@ -373,6 +372,40 @@ top20L$ID[which(top20L$ID %in% top20P$ID)]
 
 
 
+### Top 20 ###
+ps_lit_relab <- transform_sample_counts(vir_ps_lit, function(OTU) OTU/sum(OTU))
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("gmteunisse/Fantaxtic")
+library("fantaxtic")
+lit_relab_top20 <- get_top_taxa(ps_lit_relab, 20, relative = TRUE, discard_other = F,
+             other_label = "Other")
+taxa_abundance_table <- psmelt(lit_relab_top20)
+
+#create date col
+library(lubridate)
+m <- month(taxa_abundance_table$Date)
+day <- day(taxa_abundance_table$Date)
+md <- paste(day, m, sep="-")
+
+StackedBarPlot <- taxa_abundance_table %>% 
+  ggplot(aes(x =Sample, y = Abundance, fill = species)) +
+  geom_bar(stat = "identity") +
+  labs(x = "",
+       y = "Relative Abundance",
+       title = "Relative Abundance (littoral)") +
+  facet_grid(~ Years, scales = "free") +
+  theme(
+    axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1),
+    axis.text.y = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    strip.text = element_text(size = 12)
+  )+
+  scale_x_discrete(labels = md, name="Sample date")
+StackedBarPlot
+
+
 
 
 
@@ -386,7 +419,7 @@ vir_ps_lit
 vir_ps_pel 
 
 #richness by year
-ba <- breakaway(viral_physeq)
+ba <- breakaway(vir_ps_lit)
 ba
 
 ymd <- vir_ps_lit %>% sample_data %>% get_variable("Date")
@@ -686,7 +719,7 @@ citation("vegan")
 viral_physeq %>% sample_data() %>% head
 jsd <- sqrt(phyloseq::distance(viral_physeq, method = "jsd")) #jsd is more robust to sampling depth
 sampledf <- data.frame(sample_data(viral_physeq)) #make a df from the sample_data
-adonis(jsd ~ Years, data = sampledf)
+adonis(jsd ~ Site, data = sampledf)
 
 #homogeneity of dispersion test
 betadisp <- betadisper(jsd, sampledf$Years)
