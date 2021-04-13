@@ -192,8 +192,8 @@ SimpleRareToPrev.f=function(otu_fp,abund_thresh = 0.005, abund_thresh_ALL=FALSE,
 # number of low abundant ASV defined with threshold 0.0005
 relabtrans <- abundances(ASV_count, transform = "compositional")
 lowab <- rowSums(relabtrans)
-length(lowab)
-length(lowab[lowab < 0.5/100])
+nrow(ASV_count)
+length(lowab[lowab < 0.5/100 & lowab > 0])
 
 #lomb: check how many ASV are seasonal
 #see lomb.R script
