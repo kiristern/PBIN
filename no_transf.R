@@ -65,6 +65,8 @@ library(microbiome)
 #VIRAL
 
 #add ASV count table, metadata, virTree to phyloseq table
+nozero <- asv_count[rownames(asv_count) %in% names(rowSums(asv_count > 0)),]
+length(rowSums(asv_count > 0)) == nrow(asv_count)
 count_phy <- otu_table(asv_count, taxa_are_rows=T)
 sample_info <- sample_data(meta)
 virTree <- read_tree("viral_tree")
@@ -76,21 +78,38 @@ row.names(mock_taxa) <- mock_taxa[,7]
 colnames(mock_taxa)[7] <- "species"
 head(mock_taxa)
 #add to phyloseq object
-viral_physeq <- phyloseq(count_phy, sample_info, virTree, mock_taxa)
-viral_physeq %>% otu_table( ) %>% dim
+virps3000 <- phyloseq(count_phy, sample_info, virTree, mock_taxa)
+virps3000 %>% otu_table( ) %>% dim
 
-vir_abun <- viral_physeq %>% otu_table()
+vir_abun <- virps3000 %>% otu_table()
+
+sums_Phy <- data.frame(colSums(otu_table(virps22.5000)))
+colnames(sums_Phy) <- "Sample_TotalSeqs"
+sums_Phy$sample <- row.names(sums_Phy)
+sums_Phy <- arrange(sums_Phy, Sample_TotalSeqs)
+ggplot(sums_Phy, aes(x=reorder(sample, Sample_TotalSeqs), y = Sample_TotalSeqs)) +
+  ylab("Number of Sequences per Sample") +
+  geom_bar(stat = "identity", colour="black",fill="cornflowerblue")  + xlab("Sample Name") +
+  ggtitle("Total Number of Sequences per Sample") +  #scale_y_continuous(breaks =seq(0, 1000000, 10000))+
+  theme(axis.text.x = element_text(colour = "black", size=6, angle=45, hjust = 1, vjust = 1))
+
+# rm reads less than 3000
+virps3000 = prune_samples(sample_sums(virps3000)>=3000, virps3000)
+asv_count
+# asv_count_3000 <- virps3000 %>% otu_table()
+# write.table(asv_count_3000, "asv_count_3000.txt")
+
 
 #check data
-print(viral_physeq)
+print(virps3000)
 
 #https://microbiome.github.io/tutorials/
-summarize_phyloseq(viral_physeq)
+summarize_phyloseq(virps3000)
 #sparsity is how populated is the data with zeros.
 
 # separate into pelagic and littoral phyloseq objects
-vir_ps_lit <- subset_samples(viral_physeq, Site == "Littoral")
-vir_ps_pel <- subset_samples(viral_physeq, Site == "Pelagic")
+vir_ps_lit <- subset_samples(virps3000, Site == "Littoral")
+vir_ps_pel <- subset_samples(virps3000, Site == "Pelagic")
 
 
 
@@ -119,16 +138,18 @@ dd <- union(taxa_abun_tab_lit$species, taxa_abun_tab_pel$species)
 
 #generate distinct colours for each asv
 library("RColorBrewer")
+set.seed(24)
 qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
-col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
+colpals <- qual_col_pals[c("Set1", "Dark2", "Set3"),]
+col_vector = unlist(mapply(brewer.pal, colpals$maxcolors, rownames(colpals)))
 dd.col=sample(col_vector, length(dd))
 names(dd.col) <- dd
-dd.col[names(dd.col) == "Other"] <- "grey"
+dd.col[names(dd.col) == "Other"] <- "lightgrey"
 
 
 rel_ab_plot_lit <- taxa_abun_tab_lit %>% 
-  ggplot(aes(x =Sample, y = Abundance, fill = species)) +
-  geom_bar(stat = "identity") +
+  ggplot(aes(x =Sample, y = Abundance, fill = species, order = -species)) +
+  geom_bar(stat = "identity",position = position_stack(reverse = T)) + #position: Other should be top stack
   scale_fill_manual("ASV", values = dd.col)+
   labs(x = "",
        y = "Relative Abundance",
@@ -140,7 +161,8 @@ rel_ab_plot_lit <- taxa_abun_tab_lit %>%
     legend.text = element_text(size = 10),
     strip.text = element_text(size = 12)
   )+
-  scale_x_discrete(labels = md, name="Sample date")
+  scale_x_discrete(labels = md, name="Sample date")+
+  guides(fill=guide_legend(reverse = T)) #match the legend order to the order of the stack bars 
 rel_ab_plot_lit
 
 
@@ -158,7 +180,7 @@ md.p <- paste(day, m, sep="-")
 
 rel_ab_plot_pel <- taxa_abun_tab_pel %>% 
   ggplot(aes(x =Sample, y = Abundance, fill = species)) +
-  geom_bar(stat = "identity") +
+  geom_bar(stat = "identity", position = position_stack(reverse = T)) +
   scale_fill_manual("ASV", values = dd.col)+
   labs(x = "",
        y = "Relative Abundance",
@@ -170,7 +192,8 @@ rel_ab_plot_pel <- taxa_abun_tab_pel %>%
     legend.text = element_text(size = 10),
     strip.text = element_text(size = 12)
   )+
-  scale_x_discrete(labels = md.p, name="Sample date")
+  scale_x_discrete(labels = md.p, name="Sample date")+
+  guides(fill=guide_legend(reverse = T))
 rel_ab_plot_pel
 
 
@@ -298,10 +321,10 @@ wilco$p.value
 
 ### sampling depth (reads per sample)
 #https://www.nicholas-ollberding.com/post/introduction-to-the-statistical-analysis-of-microbiome-data-in-r/
-summary(sample_sums(viral_physeq)) #large difference in number of reads, min=22; max=130183
-sort(sample_sums(viral_physeq))
+summary(sample_sums(virps3000)) #large difference in number of reads, min=22; max=130183
+sort(sample_sums(virps3000))
 
-rich_depth <- data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
+rich_depth <- data.frame("total_reads" =  phyloseq::sample_sums(virps3000),
                          "richness" = (ba %>% summary)$estimate)
 
 #finding linear regression:
@@ -326,8 +349,8 @@ ggplot(data = rich_depth,
 
 
 
-ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
-                         "Years" = viral_physeq %>% sample_data %>% get_variable("Years")),
+ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(virps3000),
+                         "Years" = virps3000 %>% sample_data %>% get_variable("Years")),
        aes(x = total_reads, y = Years)) +
   geom_bar(stat = "identity") +
   labs(x = "\nTotal Reads", y = "Year\n")+
@@ -405,13 +428,13 @@ names(summary(fit)) #see calls you can make
   labs(title = "Shannon diversity by year")
 
 #### shannon vs. depth ####
-shan <- estimate_richness(viral_physeq, measures="shannon")
+shan <- estimate_richness(virps3000, measures="shannon")
 head(shan)
 
 viral_df = data.frame("shannon" = shan$Shannon,
-                      "sample" = (viral_physeq %>% sample_data)$description,
-                      "Years" = viral_physeq %>% sample_data %>% get_variable("Years"),
-                      "depth" = sample_sums(viral_physeq))
+                      "sample" = (virps3000 %>% sample_data)$description,
+                      "Years" = virps3000 %>% sample_data %>% get_variable("Years"),
+                      "depth" = sample_sums(virps3000))
 head(viral_df)
 str(viral_df)
 ggplot(viral_df, aes(x = forcats::fct_inorder(sample), y = shannon, color = Years))+ #fct_inorder ensures plotting in order of sample date
@@ -419,11 +442,11 @@ ggplot(viral_df, aes(x = forcats::fct_inorder(sample), y = shannon, color = Year
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+ #center title
   ggtitle("Shannon diversity by sample")+
-  scale_x_discrete(labels = viral_physeq %>% sample_data %>% get_variable("Months"), name="Month")#change x-axis sample name to Month
+  scale_x_discrete(labels = virps3000 %>% sample_data %>% get_variable("Months"), name="Month")#change x-axis sample name to Month
 
 ### sampling depth (reads per sample)
-summary(sample_sums(viral_physeq)) #large difference in number of reads, min=22; max=130183
-sort(sample_sums(viral_physeq))
+summary(sample_sums(virps3000)) #large difference in number of reads, min=22; max=130183
+sort(sample_sums(virps3000))
 
 fit <- lm(shannon ~ depth , data = viral_df)
 coefs <- coef(fit)
@@ -442,8 +465,8 @@ ggplot(data = viral_df, aes(x = depth, y = shannon)) +
                                                         "p-val = ", pval))
 
 
-ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
-                         "Years" = viral_physeq %>% sample_data %>% get_variable("Years")),
+ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(virps3000),
+                         "Years" = virps3000 %>% sample_data %>% get_variable("Years")),
        aes(x = total_reads, y = Years)) +
   geom_bar(stat = "identity") +
   labs(x = "\nTotal Reads", y = "Year\n")+
@@ -458,33 +481,15 @@ ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(viral_physeq),
 
 
 
-##BETA ORDINATION###
-#heatmap_distance
-# dist = sqrt(phyloseq::distance(viral_physeq, "bray"))
-# 
-# #ordination_betadiversity_PCOA
-# #PCOA need to be done with Euclidean metric distance
-# pcoa=ordinate(viral_physeq, "PCoA", distance=dist)
-# 
-# plot_ordination(viral_physeq, dist, color  = "Years") + 
-#   theme_bw() + 
-#   scale_colour_manual(values = c("red","blue", "green","brown","purple","yellow","black","grey","pink", "orange")) + 
-#   geom_point(size = 2) + 
-#   scale_shape_manual(values=c(8, 16, 6)) + 
-#   theme(axis.text.x  = element_text(vjust=0.5, size=12), 
-#         axis.text.y  = element_text(vjust=0.5, size=12), 
-#         axis.title.x = element_text(size = 15, face="bold", color="black"),
-#         axis.title.y = element_text(size=15,face="bold",color="black"))
-
 
 #### PERMANOVA ####
 #http://deneflab.github.io/MicrobeMiseq/demos/mothur_2_phyloseq.html#permanova
 library(vegan)
 package.version("vegan")
 citation("vegan")
-viral_physeq %>% sample_data() %>% head
-jsd <- sqrt(phyloseq::distance(viral_physeq, method = "jsd")) #jsd is more robust to sampling depth
-sampledf <- data.frame(sample_data(viral_physeq)) #make a df from the sample_data
+virps3000 %>% sample_data() %>% head
+jsd <- sqrt(phyloseq::distance(virps3000, method = "jsd")) #jsd is more robust to sampling depth
+sampledf <- data.frame(sample_data(virps3000)) #make a df from the sample_data
 adonis(jsd ~ Site, data = sampledf)
 
 #homogeneity of dispersion test
@@ -494,12 +499,12 @@ permutest(betadisp)
 
 
 ### NMDS ###
-nmds=metaMDS(comm = sqrt(phyloseq::distance(viral_physeq, "jsd")), k=3, trymax = 100)
-# nmds <- ordinate(physeq = viral_physeq,
+nmds=metaMDS(comm = sqrt(phyloseq::distance(virps3000, "jsd")), k=3, trymax = 100)
+# nmds <- ordinate(physeq = virps3000,
 #                  method = "NMDS",
 #                  distance = "jsd",
 #                  trymax=500)
-plot_ordination(physeq = viral_physeq,
+plot_ordination(physeq = virps3000,
                 ordination = nmds,
                 color = "Years",
                 #shape = "Site",
