@@ -181,8 +181,22 @@ SimpleRareToPrev.f=function(otu_fp,abund_thresh = 0.005, abund_thresh_ALL=FALSE,
 #rdp_lastcol - Use TRUE if the last column of the dataset contains the taxonomic assignments of OTUs, use FALSE if not
 #Then,to run the script, copy and paste the command into the R console:
 
+# cbacteria <- read.table("/Users/kiristern/Documents/GitHub/PBIN/data/cyano/Champ_ASVs_counts.txt", header = T, row.names = 1)
+# colnames(cbacteria)
+# cbacter <- cbacteria[,1:135]
+# write.table(cbacter, "bact_asv_counts.tsv", quote=F, col.names = T, sep = "\t" )
+# (cond_rare <- SimpleRareToPrev.f(otu_fp="/Users/kiristern/Documents/GitHub/PBIN/data/bact_asv_counts.tsv",abund_thresh=0.005, abund_thresh_ALL=FALSE,b_thresh=0.90, rdp_lastcol=FALSE))
+
 (cond_rare <- SimpleRareToPrev.f(otu_fp="/Users/kiristern/Documents/GitHub/PBIN/data/ASVs_counts_copy.tsv",abund_thresh=0.005, abund_thresh_ALL=FALSE,b_thresh=0.90, rdp_lastcol=FALSE))
-length(low_abundance(ASV_count, detection=0.5/100))
+
+# number of low abundant ASV defined with threshold 0.0005
+relabtrans <- abundances(ASV_count, transform = "compositional")
+lowab <- rowSums(relabtrans)
+length(lowab)
+length(lowab[lowab < 0.5/100])
+
+#lomb: check how many ASV are seasonal
+#see lomb.R script
 
 #select all the conditionally rare ASVs from phyloseq object
 crare_virps <- subset_taxa(viral_physeq, (rownames(tax_table(viral_physeq)) %in% cond_rare$OTUID))
