@@ -49,20 +49,18 @@ virps_filt
 cyanops_filt 
 
 #spiec easi
-spie <- spiec.easi(list(virps_filt, cyanops_filt), method='mb', nlambda=125,
+SE_viral_cyano <- spiec.easi(list(virps_filt, cyanops_filt), method='mb', nlambda=125,
                    lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
                                                                subsample.ratio=0.8,
                                                                seed = 1234,
                                                                ncores=4))
 
-SE_viral_cyano <- spie
 
-spie2 <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=125,
+SE_vir_dol_mic <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=125,
                     lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
                                                                 subsample.ratio=0.8,
                                                                 seed = 1234,
                                                                 ncores=4))
-SE_vir_dol_mic <- spie2
 
 SE_vir_bactnoCyan <- spiec.easi(list(virps_filt, bactnoCyan_filt), method='mb', nlambda=125,
                                 lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
