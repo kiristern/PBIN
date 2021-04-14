@@ -12,45 +12,37 @@ micro_ps <- subset_taxa(bact_physeq, Genus == "g__Microcystis")
 #ensure viral ps has same samples as cyano_ps 
 meta2
 
-colnames(asv_count) <- meta$description
-vir_counts <- asv_count[,(colnames(asv_count) %in% meta2$description)]
-rownames(vir_counts) <-paste0("vir_", rownames(vir_counts))
-mock_taxa2<- mock_taxa
-rownames(mock_taxa2)<- paste0("vir_", rownames(mock_taxa2))
+virps3000_samemeta <- virps3000
 
-#add ASV count table, metadata, virTree to phyloseq table
-count_phy <- otu_table(vir_counts, taxa_are_rows=T)
-sample_info <- sample_data(meta2)
+sample_data(virps3000_samemeta) <- sample_data(virps3000)[get_variable(virps3000, "description") %in% meta2$description]
 
-#add to phyloseq object
-virps <- phyloseq(count_phy, sample_info, mock_taxa2)
-colnames(tax_table(virps)) <- c("Kingdom", "Phylum", "Class",
-                                "Order", "Family", "Genus", "ASV")
+sample_names(virps3000_samemeta) <- sample_data(virps3000_samemeta)$description
 
 #taxa_names(viral_physeq) <- paste0("vir_", taxa_names(viral_physeq))
 taxa_names(doli_ps) <- paste0("doli_", taxa_names(doli_ps))
 taxa_names(micro_ps) <- paste0("micro_", taxa_names(micro_ps))
 
-# colnames(tax_table(viral_physeq)) <- c("Kingdom", "Phylum", "Class",
-#                                        "Order", "Family", "Genus", "ASV")
+doli.ps <- prune_samples(rownames(sample_data(doli_ps)) %in% rownames(sample_data(virps3000_samemeta)), doli_ps)
+micro.ps <- prune_samples(rownames(sample_data(micro_ps)) %in% rownames(sample_data(virps3000_samemeta)), micro_ps)
 
-doli.ps <- prune_samples(rownames(sample_data(doli_ps)) %in% rownames(meta2), doli_ps)
-micro.ps <- prune_samples(rownames(sample_data(micro_ps)) %in% rownames(meta2), micro_ps)
+#reorder phyloseq by chronological date
+map <- sample_data(virps3000_samemeta)[order(sample_data(virps3000_samemeta)$Date),]
+toorder <- rownames(map)
 
-#reorder phyloseq by chronological date (run no_trans_bact.R)
-otu_table(virps) <- otu_table(virps)[,toorder]
+otu_table(virps3000_samemeta) <- otu_table(virps3000_samemeta)[,toorder]
 otu_table(doli.ps) <- otu_table(doli.ps)[,toorder]
 otu_table(micro.ps) <- otu_table(micro.ps)[,toorder]
-
+otu_table(bact_physeq) <- otu_table(bact_physeq)[,toorder]
+otu_table(cyano_ps) <- otu_table(cyano_ps)[,toorder]
 
 bactnoCyan <- subset_taxa(bact_physeq, !Phylum == "p__Cyanobacteria")
-bactnoCyan_filt <- filter_taxa(bactnoCyan, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+bactnoCyan_filt <- filter_taxa(bactnoCyan, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 
-virps_filt <- filter_taxa(virps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+virps_filt <- filter_taxa(virps3000_samemeta, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 
-cyanops_filt <- filter_taxa(cyano_ps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
-# doli_filt <- filter_taxa(doli_ps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
-# micro_filt <- filter_taxa(micro_ps, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
+cyanops_filt <- filter_taxa(cyano_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+# doli_filt <- filter_taxa(doli_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
+# micro_filt <- filter_taxa(micro_ps, function(x) sum(x > 1) > (0.10*length(x)), TRUE)
 
 
 virps_filt
@@ -78,11 +70,97 @@ SE_vir_bactnoCyan <- spiec.easi(list(virps_filt, bactnoCyan_filt), method='mb', 
                                                                             seed = 1234,
                                                                             ncores=4))
 
+#spiec easi
+vir.spie2 <- spiec.easi(virps_filt, method='mb', nlambda=125,
+                        lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05,
+                                                                    subsample.ratio=0.8,
+                                                                    seed = 1234,
+                                                                    ncores=4))
 
-SE_vir_dol_mic$select$stars$summary #if coming up with empty network: b/c max value of the StARS summary statistic never crosses the default threshold (0.05). fix by lowering lambda.min.ratio to explore denser networks
-getStability(SE_vir_bactnoCyan)
-sum(getRefit(SE_vir_dol_mic))/2
+vir.spie2$select$stars$summary #if coming up with empty network: b/c max value of the StARS summary statistic never crosses the default threshold (0.05). fix by lowering lambda.min.ratio to explore denser networks
+getStability(vir.spie2)
+sum(getRefit(vir.spie2))/2
 
+#http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
+betaMatsym <- as.matrix(symBeta(getOptBeta(vir.spie2)))
+
+#get weights
+bm2 <- symBeta(getOptBeta(vir.spie2), mode="maxabs")
+diag(bm2) <- 0
+weights2 <- Matrix::summary(t(bm2))[,3]
+FG.ig.vir <- adj2igraph(Matrix::drop0(getRefit(vir.spie2)),
+                        edge.attr=list(weight=weights2),
+                        vertex.attr=list(name=taxa_names(virps_filt)))
+
+#plot with weights
+#plot_network(FG.ig, list(virps_filt, cyanops_filt))
+
+vir.corr.tab <- igraph::as_data_frame(FG.ig.vir, what="edges")
+write.csv(vir.corr.tab, "vir-vir.covar.csv")
+
+#plot vircyn connections with weights only
+virplot <- graph_from_data_frame(vir.corr.tab, directed = TRUE, vertices = NULL)
+
+#https://ramellose.github.io/networktutorials/workshop_MDA.html
+#Network centrality: degree centrality (ie. degree = number of connections a node has)
+virspiec.deg <- igraph::degree(virplot)
+hist(virspiec.deg)
+range(virspiec.deg)
+
+library(ggplot2)
+library(ggnet)
+ggnet2(virplot,
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = virspiec.deg,
+       size.legend = "Degree of Centrality",
+       size.cut = 4,
+       edge.size = abs(vir.corr.tab[,3]), edge.alpha = 0.5, edge.lty = ifelse(vir.corr.tab$weight > 0, 1, 2),
+       label = colnames(vir.spie2$est$data), label.size = 1)+
+  ggtitle("Viral correlation network")
+# guides(color=FALSE)
+
+
+#Check which OTUs are part of different modules.
+#https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
+
+#GREEDY COMMUNITY DETECTION
+clusters.vir<- cluster_fast_greedy(as.undirected(virplot), weights = abs(E(virplot)$weight))
+
+modularity(clusters.vir)
+
+#membership of nodes
+membership(clusters.vir)
+#number of communities
+length(clusters.vir)
+#size of communities
+sizes(clusters.vir)
+#crossing edges
+crossing(clusters.vir, virplot)
+
+#see which edge connects two different communities
+which(crossing(clusters.vir, virplot) == T)
+length(which(crossing(clusters.vir, virplot) == T)) #number of cross community interactions
+
+
+#plot communities without shaded regions
+
+ggnet2(virplot,
+       color = membership(clusters.vir),
+       alpha=0.75,
+       node.size = virspiec.deg,
+       size.legend = "Degree of Centrality",
+       size.cut = 8,
+       edge.size = abs(vir.corr.tab[,3]), edge.alpha = 0.5, edge.lty = ifelse(vir.corr.tab$weight > 0, 1, 2),
+       label = colnames(vir.spie2$est$data), label.size = 1)+
+  ggtitle("Viral correlation network by clusters")
+#guides(size=FALSE)
+
+
+
+
+#### VIRAL 
 #http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
 betaMatsym <- as.matrix(symBeta(getOptBeta(SE_viral_cyano)))
 
