@@ -1,0 +1,232 @@
+---
+title: "Co-occurrence with biotic factors"
+author: "Mathieu Castelli & Nicolas Tromas"
+date: "10/04/2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(tidyverse); library(magrittr)
+```
+
+## Data setup
+### Files import
+
+```{r import, cache=TRUE,echo = FALSE, message=FALSE}
+syn_dist <- read_tsv(file = "data/Distance_SYN.txt", col_names = TRUE) %>% 
+   rename(OTU_1 = Nodes_syn1, OTU_2 = Nodes_syn2)
+
+all_sparcc <- read_tsv("data/All_sparcc_corr.txt") %>% 
+   filter(qval < .05) %>% 
+   rename(OTU_1 = `OTU 1`, OTU_2 = `OTU 2`)
+
+ref_syn <- read_tsv("data/liste_syn.txt", col_names = FALSE) %>% 
+   pull(X1)
+```
+- syn_dist regroups all pairwise sequencing distances of all SYNECHO
+- all_sparcc is the result of the SPARCC process to obtain trustable correlations between OTUs from the reads. We keep only correlations with p-value lower than .05
+- ref_syn is the list of SYNECHO labels
+
+### Extracting relevant data
+We start by extracting from the SPARCC correlations, only the correlations that involve one or two SYNECHO.
+
+```{r extract SYNECHO correlations}
+syn_corr <- all_sparcc %>%
+   filter(OTU_1 %in% ref_syn | OTU_2 %in% ref_syn)
+```
+
+And reversely, we save all non SYNECHO taxa from the SPARCC process.
+```{r extract non syn taxa}
+non_syn_taxa <- with(syn_corr, c(OTU_1, OTU_2)) %>%
+   unique() %>%
+   keep(~! . %in% ref_syn)
+```
+### Checks
+We check for duplicate (permutted) pairs of SYNECHO: generate a min column with the smallest value, and max for the other value.
+```{r check permutted pairs}
+syn_corr %>% 
+   mutate(min = pmin(OTU_1, OTU_2),
+          max = pmax(OTU_1, OTU_2)) %>% 
+   distinct(min, max) %>% 
+   nrow() == nrow(syn_corr)
+```
+There's no permuttations. We can move on.
+
+## Generation of data
+This is the main data generation. It's an iteration over all non SYNECHO taxons.
+We run it first then explain each section separately.
+
+```{r main data generation , cache = TRUE }
+min_correlated_taxa <- 7
+pairs_data <- map_dfr(non_syn_taxa, ~{
+   
+   # For each non SYNECHO taxon it extracts the correlations to SYNECHOs from the
+   # SPARCC data by matching on either OTU column then keeping the matched OTU 
+   # and its correlation (to the taxon).
+   
+   taxon_correlated_syns <- syn_corr %>%
+      filter(OTU_1 == .x | OTU_2 == .x) %>%
+      mutate(OTU = if_else(OTU_1 == .x, OTU_2, OTU_1)) %>% 
+      select(OTU, corr)
+   
+   if (nrow(taxon_correlated_syns) < min_correlated_taxa) return(NULL)   
+   
+   # From n elements there's n x (n-1) / 2 unique pairs. We use R's combn to 
+   # generate them then do two table joins to re-integrate each element's info.
+   syn_pairs <- combn(taxon_correlated_syns$OTU, m = 2) %>%
+      t() %>% 
+      as_tibble() %>%
+      rename(OTU_1 = V1, OTU_2 = V2) %>% 
+      left_join(taxon_correlated_syns, by = c("OTU_1" = "OTU")) %>% 
+      left_join(taxon_correlated_syns, by = c("OTU_2" = "OTU"), suffix = c("_1", "_2"))
+   
+   # Again, because of pairs, we join in two times by first joining the distance
+   # info reading the pairs in one order, than the other.
+   # We also generate the absolute differences between the two correlations.
+   
+   pairs_dist_by_12 <- left_join(syn_pairs, syn_dist, by = c("OTU_1", "OTU_2"))
+   
+   pairs_dist_by_21 <- left_join(syn_pairs, syn_dist, by = c("OTU_2" = "OTU_1", "OTU_1" = "OTU_2"))
+   
+   pairs_dist_abs_corr_diff <-  pairs_dist_by_12 %>% 
+      mutate(
+         Distance = if_else(is.na(Distance),
+                            pairs_dist_by_21$Distance,
+                            Distance),
+         Abs_diff = abs(corr_1 - corr_2)
+      )
+   res <- with(pairs_dist_abs_corr_diff, cor.test(Distance, Abs_diff))
+   
+   tibble(taxa = .x,
+          nb_syns = nrow(taxon_correlated_syns),
+          nb_pairs =  nrow(pairs_dist_abs_corr_diff),
+          estimate = res$estimate,
+          p_val = res$p.value,
+          data = list(pairs_dist_abs_corr_diff))
+}) %T>% 
+   glimpse()
+```
+
+## Permutations & Bootstrapping
+```{r permutations per non syn taxa, message=TRUE, warning=TRUE, cache=TRUE}
+pairs_data_sign_corr <- pairs_data %>%
+   filter(p_val < .05)
+
+permutations_props <- map_dfr(seq_along(pairs_data_sign_corr$taxa), ~{
+   browser()
+   current <- pairs_data_sign_corr[., ]
+   
+   perm_cors <- rerun(1000,
+                      current$data[[1]] %>% 
+                         mutate(Distance = sample(Distance, replace = TRUE))
+   ) %>% 
+      map_dbl(~ cor(.$Abs_diff, .$Distance,method="spearman"))
+   
+   tibble(
+      taxa = current$taxa,
+      prop = (sum(abs(perm_cors) > abs(current$estimate)) + 1) / (length(perm_cors) + 1),
+   )
+})
+pairs_data_perms_props <- pairs_data_sign_corr %>% left_join(permutations_props, by = c("taxa"))
+```
+
+## Analysis
+### First look
+
+```{r Means, cache = TRUE}
+mean_corr_per_taxa <- pairs_data_perms_props$estimate %>% 
+   abs() %>% 
+   mean()
+
+mean_corr_of_signif_levels <- pairs_data_perms_props %>% 
+   filter(prop < .005) %>% 
+   summarise(count = nrow(.),
+             mean = mean(abs(estimate)))
+```
+The mean across all our non syn taxa sub-groups is `r mean_corr_per_taxa` (`r nrow(pairs_data_perms_props)` groups with at least seven SYNECHO correlated to the non syn taxa) and if we filter on significative based on our random permutations, the mean increases to `r mean_corr_of_signif_levels$mean` (with `r mean_corr_of_signif_levels$count` of groups that make the 0.005 cut).
+
+Taking the absolute value of the significative correlations impacts a single taxa group (taxa 1169, with estimated correlation of -0.227). All the others are positive. 
+
+Histogram of correlations between distance absolute differenced of respective correlations obtained.
+```{r histogram of correlations, echo=FALSE, message=FALSE, cache = TRUE}
+pairs_data_sign_corr %>% 
+   ggplot(aes(x = estimate)) +
+   geom_histogram(binwidth = .02, aes(y = ..count../sum(..count..))) +
+   geom_vline(xintercept = mean_corr_per_taxa, color = "red") +
+   labs(y = "Frequency", x = "Correlation") +
+   annotate("text",
+            x = mean_corr_per_taxa,
+            y = .01,
+            label = "Mean correlation \n of all groups' \n correlations.",
+            col = "white") +
+   geom_vline(xintercept = mean_corr_of_signif_levels$mean, color = "green") +
+   annotate("text",
+            x = mean_corr_of_signif_levels$mean,
+            y = 0.03,
+            label = "Mean \n of significative\n groups", 
+            col = "light grey")
+```
+
+We now bind together all the pairwise tables to get a global correlation.
+
+```{r bind big table, cache = TRUE}
+all_pairs <- map_dfr(1:nrow(pairs_data_perms_props), ~{
+   
+   current <- slice(.data = pairs_data_perms_props, .)
+   
+   with(current,
+        data[[1]] %>% 
+           mutate(taxa = taxa,
+                  prop = prop,
+                  estimate = estimate,
+                  p_val = p_val,
+                  nb_syns = nb_syns,
+                  nb_pairs = nb_pairs)
+   )
+})
+
+all_taxa_cor <- with(all_pairs, cor.test(Abs_diff, Distance)) %T>% print()
+```
+
+Quick check of link between nb of pairs and proportion obtained.
+
+Proportion of significative correlation per nb of syns in group.
+```{r nb syns distribution histogram, cache= TRUE}
+ggplot(pairs_data_perms_props) +
+   aes(x = nb_syns) +
+   geom_histogram(binwidth = 1)
+```
+
+```{r plot sign corr per nb of syns in group,cache = TRUE}
+ggplot(pairs_data_perms_props) +
+   aes(x = nb_syns, y = abs(estimate)) +
+   geom_point() +
+   geom_smooth(method = "auto", se = FALSE) +
+   labs(x = "Number of SYNECHO in correlation group",
+        y = "Absolute value of the correlation estimate")
+```
+
+The relation between nb of pairs (through the number of syns in the group) and the significance raises question.
+First, there's only `r n_distinct(all_pairs$Distance)` different Distance values between each of the `r all_pairs %>% distinct(OTU_1, OTU_2) %>% nrow()` different pairs of SYNECHO. The min distance of which is `r min(all_pairs$Distance)`. Let's see their distribution.
+
+
+```{r Distance values distribution, cache = TRUE}
+all_pairs %>% 
+   count(Distance) %>% 
+   ggplot() +
+   aes(x = Distance,
+       y = n) +
+   geom_col()
+```
+
+```{r}
+all_pairs %>% 
+   ggplot() +
+   aes(y = Abs_diff, x = Distance) +
+   geom_violin()
+```
+
+
