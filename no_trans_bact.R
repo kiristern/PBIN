@@ -53,7 +53,7 @@ colnames(tax_table(bact_physeq)) <- c("Kingdom", "Phylum", "Class",
 #quick check
 bact_physeq %>% tax_table %>% head()
 bps <- bact_physeq %>% tax_table
-bps[260,]
+bps[82,]
 
 bact_abun <- bact_physeq %>% otu_table()
 
@@ -69,18 +69,18 @@ cyano_ps <- subset_taxa(bact_physeq, Phylum == "p__Cyanobacteria")
 
 # ALPHA DIV #
 #richness by year
-ba_bact <- breakaway(bact_physeq)
+ba_bact <- breakaway(cyano_ps)
 ba_bact
 
-ba_bact_df = data.frame("richness" = (ba_bact %>% summary)$estimate,
+ba_cyano_df = data.frame("richness" = (ba_bact %>% summary)$estimate,
                         "sample" = (ba_bact %>% summary)$sample_names,
                         "error" = (ba_bact %>% summary)$error,
                      "Years" = bact_physeq %>% sample_data %>% get_variable("Years"),
                      "Upper" = (ba_bact %>% summary)$upper,
                      "Lower" = (ba_bact %>% summary)$lower)
-head(ba_bact_df)
-str(ba_bact_df)
-ggplot(ba_bact_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ #fct_inorder ensures plotting in order of sample date
+head(ba_cyano_df)
+str(ba_cyano_df)
+ggplot(ba_cyano_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ #fct_inorder ensures plotting in order of sample date
         geom_point()+
         geom_pointrange(aes(ymin=richness-abs(richness-Lower), ymax=richness+abs(richness-Upper)))+ #vs. geom_errorbar
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
@@ -111,7 +111,7 @@ ggplot(ba_bact_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ #
   
 
 #boxplot years
-(ba_plot <-  ggplot(ba_bact_df, aes(x = Years, y = richness))+
+(ba_plot <-  ggplot(ba_cyano_df, aes(x = Years, y = richness))+
     geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                                  geom="crossbar", width=0.5) + theme_minimal()+
   ggtitle("Observed richness by year")+
@@ -120,5 +120,6 @@ ggplot(ba_bact_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ #
 
 
 
-
+#### Shannon diversity ####
+ba_shannon <- estimate_richness(cyano_ps, measures="Shannon")
 

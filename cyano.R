@@ -45,38 +45,38 @@ cyano_taxa$ASV <- row.names(cyano_taxa)
 
 #transform asv density as a proportion of the sum of all densities
 cyano_rel_abundance <-decostand(cyano_removed, method="hellinger")
-# #transpose table
-# cyano_transpose <- t(cyano_rel_abundance)
-# 
-# #get total count of asv
-# cyano_tot <- colSums(cyano_transpose)
-# #transform to df
-# cyano_tot <- as.data.frame(cyano_tot)
-# #extract asv_id
-# cyano_asv_id <- row.names(cyano_tot)
-# #add asv_ids to df
-# cyano_tot$ASV=cyano_asv_id
-# #add new empty column
-# newcol <- "tot_rel_ab"
-# cyano_tot[,newcol] <- NA
-# 
-# #get relative abundance function
-# get_rel_abund <- function(x){
-#   x / sum(x)
-# }
-# 
-# #apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
-# cyano_tot[3] <- get_rel_abun(cyano_tot[1])
-# 
-# #merge dfs
-# count_taxa <- left_join(cyano_tot, cyano_taxa, "ASV")
-# head(count_taxa)
-# 
-# #tranpose cyano_rel_abundance back
-# cyano_trans <- t(cyano_rel_abundance)
-# cyano_trans <- as.data.frame(cyano_trans)
-# #create new col with replicated ASV name
-# cyano_trans$ASV=cyano_asv_id
+#transpose table
+cyano_transpose <- t(cyano_rel_abundance)
+
+#get total count of asv
+cyano_tot <- colSums(cyano_transpose)
+#transform to df
+cyano_tot <- as.data.frame(cyano_tot)
+#extract asv_id
+cyano_asv_id <- row.names(cyano_tot)
+#add asv_ids to df
+cyano_tot$ASV=cyano_asv_id
+#add new empty column
+newcol <- "tot_rel_ab"
+cyano_tot[,newcol] <- NA
+
+#get relative abundance function
+get_rel_abund <- function(x){
+  x / sum(x)
+}
+
+#apply function to the first col of df asv_tot and put into rel_ab col of df asv_tot
+cyano_tot[3] <- get_rel_abund(cyano_tot[1])
+
+#merge dfs
+count_taxa <- left_join(cyano_tot, cyano_taxa, "ASV")
+head(count_taxa)
+
+#tranpose cyano_rel_abundance back
+cyano_trans <- t(cyano_rel_abundance)
+cyano_trans <- as.data.frame(cyano_trans)
+#create new col with replicated ASV name
+cyano_trans$ASV=cyano_asv_id
 
 head(cyano_rel_abundance)
 #extract asv_id

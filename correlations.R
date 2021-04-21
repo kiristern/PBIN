@@ -91,7 +91,8 @@ bact_helli <- transform(bact_physeq, transform = "hellinger", target = "OTU")
 bact_helli_filt = filter_taxa(bact_helli, function(x) sum(x > 1e-5) > (0.10*length(x)), TRUE)
 b_helli_filt <- bact_helli_filt %>% otu_table()
 
-cya_helli_filt <- subset_taxa(bact_helli_filt, !Phylum == "p__Cyanobacteria")
+bactnoCyan_helli_filt <- subset_taxa(bact_helli_filt, !Phylum == "p__Cyanobacteria")
+cya_helli_filt <- subset_taxa(bact_helli_filt, Phylum == "p__Cyanobacteria")
 c_helli_filt <- cya_helli_filt %>% otu_table()
 
 #change colID to match
@@ -144,16 +145,17 @@ sig_bactnoCyano <- filter(corr_bactnoCyan, p.adj < 0.05)
 sig_corrCyano <- filter(corr_cyan, p.adj < 0.05)
 
 # #arrange fig
-subtab %>% ggplot(aes(x = X1, y = X2, fill = Correlation))+
+subtab #not sure what this is....
+filt_corrCyan %>% ggplot(aes(x = X1, y = X2, fill = Correlation))+
   geom_tile()+
   scale_fill_gradientn("Correlation",
                        breaks = seq(from=-1, to=1, by = 0.2),
                        colours = c("darkblue", "blue", "white", "red", "darkred"),
                        limits=c(-1,1))+
-  theme(axis.text.x = element_text(angle=90))+
-  xlab("Viral") + ylab("Bacterial")+
-  theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank())
+  theme(axis.text.x = element_text(angle=90, size=10),
+        axis.text.y = element_text(size=10))+
+  xlab("Viral") + ylab("Bacterial")
+  #theme(axis.text.x = element_blank(),
 
 corr.filt <- helli_filt_corr %>% filter(Correlation > 0.6)
 corr.filt[order(-corr.filt$Correlation),] #sort by descending Correlation strength
@@ -163,12 +165,12 @@ unique(corr.filt$X2)
 
 heat(corr.filt, "X1", "X2", fill = "Correlation", star = "p.adj", p.adj.threshold = 0.05)
 
-filt_bactnoCyan <- sig_bactnoCyano %>% filter(Correlation > 0.6)
-filt_corrCyan <- sig_corrCyano %>% filter(Correlation > 0.6)
+filt_bactnoCyan <- sig_bactnoCyano %>% filter(Correlation > 0.6 | Correlation < -0.6)
+filt_corrCyan <- sig_corrCyano %>% filter(Correlation > 0.6 )
 
 #see which phage is the same between both dfs
-idx <- which(filt_corrCyan$X1 %in% filt_bactnoCyan$X1)
-unique(filt_corrCyan$X1[idx])
+# idx <- which(filt_corrCyan$X1 %in% filt_bactnoCyan$X1)
+# unique(filt_corrCyan$X1[idx])
 
 
 
@@ -185,11 +187,13 @@ library(vegan)
 
 #FILTER OUT LOW ABUNDANCE.
 (bact_filt_ps = filter_taxa(bact_physeq, function(x) sum(x > 10) > (0.10*length(x)), TRUE))
+(bactnocyano_filt_ps <- subset_taxa(bact_filt_ps, !Phylum == "p__Cyanobacteria"))
+
 (cyano_filt_ps <- subset_taxa(bact_filt_ps, Phylum == "p__Cyanobacteria"))
 (vir_filt_ps = filter_taxa(viral_physeq, function(x) sum(x > 1) > (0.10*length(x)), TRUE))
 
 #make sure same sample length
-bac.ps <- prune_samples(rownames(sample_data(bact_filt_ps)) %in% rownames(meta2), bact_filt_ps)
+bacnocyan.ps <- prune_samples(rownames(sample_data(bactnocyano_filt_ps)) %in% rownames(meta2), bactnocyano_filt_ps)
 
 cyan.ps <- prune_samples(rownames(sample_data(cyano_filt_ps)) %in% rownames(meta2), cyano_filt_ps)
 vir.ps <- prune_samples(sample_data(vir_filt_ps)$description %in% rownames(meta2), vir_filt_ps)
@@ -198,13 +202,14 @@ sample_names(vir.ps) <- sample_data(vir.ps)$description
 
 dist_vir<-sqrt(phyloseq::distance(vir.ps, "jsd"))
 dist_cyan<-sqrt(phyloseq::distance(cyan.ps, "jsd"))
-dist.bact <- sqrt(phyloseq::distance(bac.ps, "jsd"))
+dist.bactnocyan <- sqrt(phyloseq::distance(bacnocyan.ps, "jsd"))
 
 plot(dist_vir, dist_cyan)
 abline(lm(dist_vir ~ dist_cyan))
 
 (cyano.mantel <-mantel(dist_vir, dist_cyan, method = "spearman", perm=1000))
-mantel(dist_vir, dist.bact, method="spearman", perm=1000)
+mantel(dist_vir, dist.bactnocyan, method="spearman", perm=1000)
+
 
 #plot
 hist(cyano.mantel$perm)
@@ -224,7 +229,7 @@ abline(v=cyano.mantel$statistic)
 
 ##### Procrustes #####
 protest(dist_vir,dist_cyan)
-protest(dist_vir, dist.bact)
+protest(dist_vir, dist.bactnocyan)
 
 
 

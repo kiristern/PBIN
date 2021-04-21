@@ -9,57 +9,77 @@ metadata$Sample <- sub("*._*._*._*._*._*._*._","", metadata$Sample)
 #change "_" to "."
 metadata$Sample <- gsub("_", ".", metadata$Sample)
 
-cyano_counts <- read.table("cyano/Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
-cyano_taxa <- read.csv("cyano/ASVs_taxonomy_Champ_Greengenes.csv", header = T, row.names = 1, fill=T)
+bact_counts <- read.table("cyano/Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
+bact_taxa <- read.csv("cyano/ASVs_taxonomy_Champ_Greengenes.csv", header = T, row.names = 1, fill=T)
 
 #select cyno ASVs only
-cyano_asv <- cyano_counts[,1:135]
+bact_asv <- bact_counts[,1:135]
 #merge cyano_taxa to cyano_asv
-cyanodf <- merge(cyano_asv, cyano_taxa, by="row.names")
+bactdf <- merge(bact_asv, bact_taxa, by="row.names")
 #remove X at beginning of date
-colnames(cyanodf)[1:136] <- substring(colnames(cyanodf)[1:136], 2)
+colnames(bactdf)[2:136] <- substring(colnames(bactdf)[2:136], 2)
+rownames(bactdf) <- bactdf$Row.names
+bactdf <- bactdf[,-1]
+
+bact_helli <- bactdf
+
+bact_helli[,1:135] <- decostand(bactdf[1:135], method = "hellinger")
 
 #### group by cyanobacteria, microcystis, dolichospermum ####
-cyanobacteria <- cyanodf[grep("Cyanobacteria", cyanodf$Phylum), ]
-cyanobacteria <- cyanobacteria[,1:136]
-colsum_cy <- as.data.frame(colSums(cyanobacteria[,-1], na.rm=T))
+cyanobac_helli <- bact_helli[grep("Cyanobacteria", cyanodf$Phylum), ]
+cyanobac_helli <- cyanobac_helli[,1:135]
+colsum_cy <- as.data.frame(colSums(cyanobac_helli, na.rm=T))
 #rename col
-names(colsum_cy)[names(colsum_cy) == "colSums(cyanobacteria[, -1], na.rm = T)"] <- "Cyano Abundance"
+names(colsum_cy)[names(colsum_cy) == "colSums(cyanobacteria, na.rm = T)"] <- "cyano.sum.helli"
 #create col with Samples in order to merge with second df
 colsum_cy$Sample <- row.names(colsum_cy)
 
 ###add cyanobacteria abundance to metadata###
+
+meta
+
 #check similar samples
-row.names(colsum_cy) %in% metadata$Sample
+row.names(colsum_cy) %in% meta$description
 #merge by similar samples
-meta_cyano <- merge(colsum_cy, metadata, by="Sample", all=T)
+meta_cyano <- merge(meta, colsum_cy, by.y="Sample", by.x = "description", all.x = T)
+
+#rename col
+meta_cyano <- dplyr::rename(meta_cyano, cyano.sum.helli = "colSums(cyanobac_helli, na.rm = T)")
+colnames(meta_cyano)
+rownames(meta_cyano) <- rownames(meta)
+head(meta_cyano)
+
 
 ###add microcystis to meta_cyano
-microcystis <- cyanodf[grep("Microcystaceae", cyanodf$Family), ]
-microcystis <- microcystis[,1:136]
-colsum_mi <- as.data.frame(colSums(microcystis[,-1], na.rm=T))
-names(colsum_mi)[names(colsum_mi) == "colSums(microcystis[, -1], na.rm = T)"] <- "Micro Abundance"
+micro.helli <- bact_helli[grep("Microcystaceae", cyanodf$Family), ]
+micro.helli <- micro.helli[,1:135]
+colsum_mi <- as.data.frame(colSums(micro.helli, na.rm=T))
 colsum_mi$Sample <- row.names(colsum_mi)
 
-row.names(colsum_mi) %in% meta_cyano$Sample
-meta_cm <- merge(colsum_mi, meta_cyano, by="Sample", all=T)
+row.names(colsum_mi) %in% meta_cyano$description
+meta_cm <- merge(meta_cyano, colsum_mi, by.x="description", by.y="Sample", all.x =T)
+
+meta_cm <- dplyr::rename(meta_cm, micro.sum.helli = "colSums(micro.helli, na.rm = T)")
+colnames(meta_cm)
+rownames(meta_cm) <- rownames(meta)
+head(meta_cm, n=4)
 
 ###add dolichospermum to meta_cm
-dolichospermum <- cyanodf[grep("Dolichospermum", cyanodf$Genus), ]
-dolichospermum <- dolichospermum[,1:136]
-colsum_do <- as.data.frame(colSums(dolichospermum[,-1], na.rm=T))
-names(colsum_do)[names(colsum_do) == "colSums(dolichospermum[, -1], na.rm = T)"] <- "Dolicho Abundance"
+doli.helli <- bact_helli[grep("Dolichospermum", cyanodf$Genus), ]
+doli.helli <- doli.helli[,1:135]
+colsum_do <- as.data.frame(colSums(doli.helli, na.rm=T))
 colsum_do$Sample <- row.names(colsum_do)
 
-row.names(colsum_do) %in% meta_cm$Sample
-meta_cmd <- merge(colsum_do, meta_cm, by="Sample", all=T)
+row.names(colsum_do) %in% meta_cm$description
+meta_cmd <- merge(meta_cm, colsum_do, by.x = "description", by.y="Sample", all.x=T)
 
 #put rownames back to original sample names
 colnames(meta_cmd)
-meta <- meta_cmd[,-17]
-row.names(meta) <- meta_cmd[,17]
+meta_cmd <- dplyr::rename(meta_cmd, doli.sum.helli = "colSums(doli.helli, na.rm = T)")
+rownames(meta_cmd) <- rownames(meta)
 
-#write.csv(meta_cmd, "meta_cmd2.csv") #manually removed NA rows in OriginalSample and Sample col
+meta_cmd
+write.csv(meta_cmd, "meta_cmd.csv") #manually removed NA rows in OriginalSample and Sample col
 
 
 

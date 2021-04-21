@@ -21,6 +21,8 @@ sample_names(virps3000_samemeta) <- sample_data(virps3000_samemeta)$description
 #taxa_names(viral_physeq) <- paste0("vir_", taxa_names(viral_physeq))
 taxa_names(doli_ps) <- paste0("doli_", taxa_names(doli_ps))
 taxa_names(micro_ps) <- paste0("micro_", taxa_names(micro_ps))
+taxa_names(virps3000_samemeta) <- paste0("vir_", taxa_names(virps3000_samemeta))
+
 
 doli.ps <- prune_samples(rownames(sample_data(doli_ps)) %in% rownames(sample_data(virps3000_samemeta)), doli_ps)
 micro.ps <- prune_samples(rownames(sample_data(micro_ps)) %in% rownames(sample_data(virps3000_samemeta)), micro_ps)
@@ -50,26 +52,30 @@ cyanops_filt
 
 #spiec easi
 SE_viral_cyano <- spiec.easi(list(virps_filt, cyanops_filt), method='mb', nlambda=125,
-                   lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
+                   lambda.min.ratio=1e-5, pulsar.params = list(thresh = 0.05,
                                                                subsample.ratio=0.8,
                                                                seed = 1234,
                                                                ncores=4))
 
+getStability(SE_viral_cyano)
 
-SE_vir_dol_mic <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=125,
-                    lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
+SE_vir_dol_mic <- spiec.easi(list(virps_filt, doli.ps, micro.ps), method='mb', nlambda=75,
+                    lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05,
                                                                 subsample.ratio=0.8,
                                                                 seed = 1234,
                                                                 ncores=4))
+getStability(SE_vir_dol_mic)
 
-SE_vir_bactnoCyan <- spiec.easi(list(virps_filt, bactnoCyan_filt), method='mb', nlambda=125,
-                                lambda.min.ratio=1e-3, pulsar.params = list(thresh = 0.05,
+SE_vir_bactnoCyan <- spiec.easi(list(virps_filt, bactnoCyan_filt), method='mb', nlambda=100,
+                                lambda.min.ratio=1e-4, pulsar.params = list(thresh = 0.05,
                                                                             subsample.ratio=0.8,
                                                                             seed = 1234,
                                                                             ncores=4))
+getStability(SE_vir_bactnoCyan)
+
 
 #spiec easi
-vir.spie2 <- spiec.easi(virps_filt, method='mb', nlambda=125,
+vir.spie2 <- spiec.easi(virps_filt, method='mb', nlambda=100,
                         lambda.min.ratio=1e-2, pulsar.params = list(thresh = 0.05,
                                                                     subsample.ratio=0.8,
                                                                     seed = 1234,
@@ -162,7 +168,6 @@ ggnet2(virplot,
 #http://psbweb05.psb.ugent.be/conet/microbialnetworks/spieceasi.php
 betaMatsym <- as.matrix(symBeta(getOptBeta(SE_viral_cyano)))
 
-betaMatsym2 <- as.matrix(symBeta(getOptBeta(SE_vir_dol_mic)))
 dim(betaMatsym)
 
 #select for cyano - viral connections only
@@ -198,7 +203,7 @@ covar.vir.cyn <- igraph::as_data_frame(FG.ig.vir.cyn, what="edges")
 library(dplyr)
 vircyn <- covar.vir.cyn %>% 
   filter(across(to, ~ !grepl('vir_', .))) %>%
-  filter(across(from, ~grepl('vir_', .)))
+  filter(across(from, ~grepl('vir_', .))) 
 head(vircyn)
 write.csv(vircyn, "vircyan.cov.csv")
 
@@ -303,6 +308,7 @@ ggnet2(vircyan.plot,
 #   ggtitle("Viral with Cyanobacterial correlation network by clusters")
 # #guides(size=FALSE)
 
+betaMatsym2 <- as.matrix(symBeta(getOptBeta(SE_vir_dol_mic)))
 
 bm2 <- symBeta(getOptBeta(SE_vir_dol_mic), mode="maxabs")
 diag(bm2) <- 0
@@ -470,7 +476,56 @@ BnoC <- covar.vir.bactnoCyan %>%
 head(BnoC)
 write.csv(BnoC, "virbactnoCyan.cov.csv")
 
+#plot vircyn connections with weights only
+virbactnocyan.plot <- graph_from_data_frame(BnoC, directed = TRUE, vertices = NULL)
 
+# get dtype for cyano
+dtype.cyan <- as.factor(c(rep("Phage", length(unique(BnoC[,1]))), rep("Bacteria", length(unique(BnoC[,2])))))
+otu.id.cyan <- colnames(SE_vir_bactnoCyan$est$data)
+
+#https://ramellose.github.io/networktutorials/workshop_MDA.html
+#Network centrality: degree centrality (ie. degree = number of connections a node has)
+degree.cyan <- igraph::degree(virbactnocyan.plot)
+hist(degree.cyan)
+range(degree.cyan)
+
+library(ggplot2)
+library(ggnet)
+ggnet2(virbactnocyan.plot,
+       color = dtype.cyan, palette = c("Phage" = "#E1AF00", "Bacteria" = "steelblue"), 
+       alpha=0.75,
+       #shape = factor(dtype),
+       #shape.legend = "Type",
+       node.size = degree.cyan,
+       size.legend = "Degree of Centrality",
+       size.cut = 6,
+       edge.size = abs(BnoC[,3]), edge.alpha = 0.5, edge.lty = ifelse(BnoC$weight > 0, 1, 2),
+       label = otu.id.cyan, label.size = 1)+
+  ggtitle("Viral and bacterial correlation network")
+
+
+#Check which OTUs are part of different modules.
+#https://users.dimi.uniud.it/~massimo.franceschet/R/communities.html
+
+#GREEDY COMMUNITY DETECTION
+clust.cyan<- cluster_fast_greedy(as.undirected(virbactnocyan.plot), weights = abs(E(virbactnocyan.plot)$weight))
+modularity(clust.cyan)
+
+#modularity matrix
+B.cyan = modularity_matrix(virbactnocyan.plot, membership(clust.cyan))
+
+ggnet2(virbactnocyan.plot,
+       color = membership(clust.cyan),
+       alpha=0.75,
+       shape = factor(dtype.cyan),
+       shape.legend = "Type",
+       node.size = degree.cyan,
+       size.legend = "Degree of Centrality",
+       size.cut = 8,
+       edge.size = abs(BnoC[,3]), edge.alpha = 0.5, edge.lty = ifelse(BnoC$weight > 0, 1, 2),
+       label = otu.id.cyan, label.size = 1)+
+  ggtitle("Viral with bacterial correlation network by clusters")
+#guides(size=FALSE)
 
 
 
