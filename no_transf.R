@@ -78,12 +78,18 @@ row.names(mock_taxa) <- mock_taxa[,7]
 colnames(mock_taxa)[7] <- "species"
 head(mock_taxa)
 #add to phyloseq object
-virps3000 <- phyloseq(count_phy, sample_info, virTree, mock_taxa)
-virps3000 %>% otu_table( ) %>% dim
+viral_physeq <- phyloseq(count_phy, sample_info, virTree, mock_taxa)
+viral_physeq %>% otu_table( ) %>% dim
+
+# rm reads less than 3000
+virps3000 = prune_samples(sample_sums(viral_physeq)>=3000, viral_physeq)
+#asv_count
+# asv_count_3000 <- virps3000 %>% otu_table()
+# write.table(asv_count_3000, "asv_count_3000.txt")
 
 vir_abun <- virps3000 %>% otu_table()
 
-sums_Phy <- data.frame(colSums(otu_table(virps22.5000)))
+sums_Phy <- data.frame(colSums(otu_table(virps3000)))
 colnames(sums_Phy) <- "Sample_TotalSeqs"
 sums_Phy$sample <- row.names(sums_Phy)
 sums_Phy <- arrange(sums_Phy, Sample_TotalSeqs)
@@ -92,12 +98,6 @@ ggplot(sums_Phy, aes(x=reorder(sample, Sample_TotalSeqs), y = Sample_TotalSeqs))
   geom_bar(stat = "identity", colour="black",fill="cornflowerblue")  + xlab("Sample Name") +
   ggtitle("Total Number of Sequences per Sample") +  #scale_y_continuous(breaks =seq(0, 1000000, 10000))+
   theme(axis.text.x = element_text(colour = "black", size=6, angle=45, hjust = 1, vjust = 1))
-
-# rm reads less than 3000
-virps3000 = prune_samples(sample_sums(virps3000)>=3000, virps3000)
-asv_count
-# asv_count_3000 <- virps3000 %>% otu_table()
-# write.table(asv_count_3000, "asv_count_3000.txt")
 
 
 #check data
@@ -208,10 +208,10 @@ vir_ps_lit
 vir_ps_pel 
 
 #richness by year
-ba <- breakaway(vir_ps_lit)
+ba <- breakaway(virps3000)
 ba
 
-ymd <- vir_ps_lit %>% sample_data %>% get_variable("Date")
+ymd <- vir_ps_pel %>% sample_data %>% get_variable("Date")
 library(lubridate)
 m <- month(ymd)
 d <- day(ymd)
@@ -220,10 +220,10 @@ md <- paste( d, m, sep="-")
 ba_vir_df = data.frame("richness" = (ba %>% summary)$estimate,
                         #"sample" = (ba %>% summary)$sample_names,
                         "error" = (ba %>% summary)$error,
-                        "Years" = vir_ps_lit %>% sample_data %>% get_variable("Years"),
+                        "Years" = virps3000 %>% sample_data %>% get_variable("Years"),
                         "Upper" = (ba %>% summary)$upper,
                         "Lower" = (ba %>% summary)$lower,
-                       "sample"= vir_ps_lit %>% sample_data %>% get_variable("description"))
+                       "sample"= virps3000 %>% sample_data %>% get_variable("description"))
 head(ba_vir_df)
 ggplot(ba_vir_df, aes(x = forcats::fct_inorder(sample), y = richness, color = Years))+ #fct_inorder ensures plotting in order of sample date
   geom_point(size=3)+
@@ -237,11 +237,11 @@ ggplot(ba_vir_df, aes(x = forcats::fct_inorder(sample), y = richness, color = Ye
 
 #boxplot years
 ba_year = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
-                     "Years" = vir_ps_lit %>% sample_data %>% get_variable("Years"))
+                     "Years" = virps3000 %>% sample_data %>% get_variable("Years"))
 (ba_plot <-  ggplot(ba_year, aes(x = Years, y = ba_observed_richness))+
     geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                                  geom="crossbar", width=0.5) + theme_minimal()+
-  ggtitle("Observed richness by year (pelagic)")+
+  ggtitle("Observed richness by year")+
   theme(plot.title = element_text(hjust=0.5))+
   scale_y_continuous(name = "Observed richness")
 
@@ -265,7 +265,7 @@ summary(fit)
     geom_abline(intercept = coefs[1], slope = coefs[2])+
     annotate(geom="text", x = 3.5, y=620, label= paste("Adj R2 = ", r2,
                                                      "p-val = ", pval))+
-    labs(title = "Observed richness by year (littoral)")+
+    labs(title = "Observed richness by year")+
     stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                        geom="crossbar", width=0.5)+ 
     theme_minimal())
@@ -274,18 +274,21 @@ summary(fit)
 
 
 #richness by bloom/no-bloom
+
+ba_virps3000 <- breakaway(virps3000)
+
 #boxplot bloom
-ba_bloom = data.frame("ba_observed_richness" = (ba %>% summary)$estimate,
-                      "Site" = filt_virseq %>% sample_data %>% get_variable("Site"))
+ba_bloom = data.frame("ba_observed_richness" = (ba_virps3000 %>% summary)$estimate,
+                      "Bloom" = virps3000 %>% sample_data %>% get_variable("bloom2"))
 ba_bloom_yn <- na.omit(ba_bloom[1:2])
 
-(ba_plot <-  ggplot(ba_bloom, aes(x = Site, y = ba_observed_richness))+
+(ba_plot <-  ggplot(ba_bloom_yn, aes(x = Bloom, y = ba_observed_richness))+
     geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                                  geom="crossbar", width=0.5) + theme_minimal()
 
 #t test
 #http://www.sthda.com/english/wiki/unpaired-two-samples-t-test-in-r
-group_by(ba_bloom, Site) %>%
+group_by(ba_bloom_yn, Bloom) %>%
   summarise(
     # count = n(),
     mean = mean(ba_observed_richness),
@@ -300,29 +303,32 @@ group_by(ba_bloom, Site) %>%
 #Alternative hypothesis: the data are not normally distributed
 
 # Shapiro-Wilk normality test for Bloom
-with(ba_bloom, shapiro.test(ba_observed_richness[Site == "Littoral"])) # p = 0.0.04121 for bloom; p = 0.037 for littoral
+with(ba_bloom, shapiro.test(ba_observed_richness[Bloom == "yes"])) # p = 0.008 for site; p-val = 0.22 for bloom
 # Shapiro-Wilk normality test for No Bloom
-with(ba_bloom, shapiro.test(ba_observed_richness[Site == "Pelagic"])) # p = 0.02033; p = 0.64 for pelagic
+with(ba_bloom, shapiro.test(ba_observed_richness[Bloom == "no"])) # p = 0.447 for site; p=0.63 for bloom
 #the two p-values are not greater than the significance level 0.05 implying that the distribution of the 
 #data are significantly different from the normal distribution. Ie, we cannot assume the normality.
 #if the data are not normally distributed, it’s recommended to use the non parametric two-samples Wilcoxon rank test.
 
 #Wilcoxon test
 # Question: Is there any significant changes in the richness of ASV during and not during bloom?
-wilco <- wilcox.test(ba_observed_richness ~ Site, data = ba_bloom)
+wilco <- wilcox.test(ba_observed_richness ~ Bloom, data = ba_bloom)
 wilco
 
 #print p-value only
 wilco$p.value
-# 0.01906275 < 0.05 therefore significant difference between groups
+# 0.07 > 0.05 therefore no significant difference between sites
+# 0.56 no signif difference between bloom
 
 
 
 
 ### sampling depth (reads per sample)
 #https://www.nicholas-ollberding.com/post/introduction-to-the-statistical-analysis-of-microbiome-data-in-r/
-summary(sample_sums(virps3000)) #large difference in number of reads, min=22; max=130183
-sort(sample_sums(virps3000))
+summary(sample_sums(viral_physeq)) #large difference in number of reads, min=22; max=130183
+sort(sample_sums(viral_physeq))
+
+ba <- breakaway(virps3000)
 
 rich_depth <- data.frame("total_reads" =  phyloseq::sample_sums(virps3000),
                          "richness" = (ba %>% summary)$estimate)
@@ -341,7 +347,7 @@ ggplot(data = rich_depth,
   geom_point() +
   geom_smooth(method="lm") +
   labs(x = "\nTotal Reads", y = "Richness\n",
-       title = "Observed richness by sampling depth")+
+       title = "Breakaway richness by sampling depth")+
     geom_abline(intercept = coefs[1], slope = coefs[2])+
     annotate(geom="text", x = 2e+04, y=700, size = 3,
              label= paste("Adj R2 = ", r2,
@@ -372,7 +378,7 @@ ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(virps3000),
 vir_ps_pel
 vir_ps_lit
 
-vir_shannon <- estimate_richness(vir_ps_pel, measures="Shannon")
+vir_shannon <- estimate_richness(virps3000, measures="Shannon")
 
 vir_shannon$sample <- rownames(vir_shannon)
 vir_shannon$Years <- sub("^([^_]*.[^_]*.[^_]*.[^_]*).*$",'\\1', rownames(vir_shannon)) #rm everything after 4th _
@@ -393,7 +399,7 @@ ggplot(vir_shannon, aes(x = forcats::fct_inorder(sample), y = Shannon, color = Y
   geom_point(size=3)+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+ #center title
-  ggtitle("Shannon diversity of pelagic samples")+
+  ggtitle("Shannon diversity of littoral samples")+
   scale_x_discrete(labels = md, name="Sample date")+ #change x-axis sample name to Month-Day
   scale_y_continuous(name="Shannon diversity")
   #facet_grid(~ Years, scales = "free")
@@ -419,7 +425,6 @@ names(summary(fit)) #see calls you can make
 (shannon_plot <-  ggplot(vir_shannon, aes(x = Years, y = Shannon))+
     geom_point()) + stat_summary(fun.data="mean_sdl", fun.args = list(mult=1), 
                                  geom="crossbar", width=0.5) + theme_minimal()+
-  ggtitle("Shannon diversity by year (pelagic)")+
   theme(plot.title = element_text(hjust=0.5))+
   scale_y_continuous(name = "Shannon diversity")+
   geom_abline(intercept = fit$coefficients[1], slope =  fit$coefficients[2])+
@@ -462,7 +467,8 @@ ggplot(data = viral_df, aes(x = depth, y = shannon)) +
   labs(x = "\nTotal Reads", y = "Shannon\n")+
   geom_abline(intercept = fit$coefficients[1], slope =  fit$coefficients[2])+
   annotate(geom="text", x = 2e+04, y=4.75, label= paste("Adj R2 = ", r2,
-                                                        "p-val = ", pval))
+                                                        "p-val = ", pval))+
+  ggtitle("Shannon diversity by depth")
 
 
 ggplot(data = data.frame("total_reads" =  phyloseq::sample_sums(virps3000),
@@ -490,7 +496,7 @@ citation("vegan")
 virps3000 %>% sample_data() %>% head
 jsd <- sqrt(phyloseq::distance(virps3000, method = "jsd")) #jsd is more robust to sampling depth
 sampledf <- data.frame(sample_data(virps3000)) #make a df from the sample_data
-adonis(jsd ~ Site, data = sampledf)
+adonis(jsd ~ Period, data = sampledf)
 
 #homogeneity of dispersion test
 betadisp <- betadisper(jsd, sampledf$Years)

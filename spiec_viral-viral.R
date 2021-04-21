@@ -2,7 +2,7 @@
 library(SpiecEasi)
 library(igraph)
 
-viral_physeq2 <- viral_physeq
+viral_physeq2 <- virps3000
 
 #add to phyloseq object
 colnames(tax_table(viral_physeq2)) <- c("Kingdom", "Phylum", "Class",
@@ -97,7 +97,7 @@ ggnet2(virplot,
        alpha=0.75,
        node.size = virspiec.deg,
        size.legend = "Degree of Centrality",
-       size.cut = 8,
+       size.cut = 3,
        edge.size = abs(vir.corr.tab[,3]), edge.alpha = 0.5, edge.lty = ifelse(vir.corr.tab$weight > 0, 1, 2),
        label = colnames(vir.spie2$est$data), label.size = 1)+
   ggtitle("Viral correlation network by clusters")
