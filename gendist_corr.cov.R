@@ -8,19 +8,23 @@ library(reshape2)
 #sparcc values
 options(stringsAsFactors=FALSE)
 .Options$sig_pval <- 0.05
-# Read in data
-d.corr_full <- read.table('median_correlation.tsv', sep='\t', header=TRUE, comment.char='', row.names=1, check.names=FALSE)
-d.pval_full <- read.table('pvalues.tsv', sep='\t', header=TRUE, comment.char='', row.names=1, check.names=FALSE)
-# Mask upper triangle with NAs then melt, excluding upper triangle values
-d.corr_full[upper.tri(d.corr_full, diag=TRUE)] <- NA
-d.pval_full[upper.tri(d.pval_full, diag=TRUE)] <- NA
-d.corr <- melt(as.matrix(d.corr_full), na.rm=TRUE, varnames=c('otu_1', 'otu_2'), value.name='correlation')
-d.pval <- melt(as.matrix(d.pval_full), na.rm=TRUE, varnames=c('otu_1', 'otu_2'), value.name='pvalue')
-# Merge correlations and pvalues, apply multiple testing correction
-sparc <- merge(d.corr, d.pval)
-sparc$pvalue_adjusted <- p.adjust(sparc$pvalue, method='BH')
-# Print rows with a significant pvalue, after multiple testing correction
-sparc.signif <- print(sparc[sparc$pvalue_adjusted <= .Options$sig_pval, ], row.names=FALSE)
+# # Read in data as matrix
+# d.corr_full <- read.table('median_correlation.tsv', sep='\t', header=TRUE, comment.char='', row.names=1, check.names=FALSE)
+# d.pval_full <- read.table('pvalues.tsv', sep='\t', header=TRUE, comment.char='', row.names=1, check.names=FALSE)
+# # Mask upper triangle with NAs then melt, excluding upper triangle values
+# d.corr_full[upper.tri(d.corr_full, diag=TRUE)] <- NA
+# d.pval_full[upper.tri(d.pval_full, diag=TRUE)] <- NA
+# d.corr <- melt(as.matrix(d.corr_full), na.rm=TRUE, varnames=c('otu_1', 'otu_2'), value.name='correlation')
+# d.pval <- melt(as.matrix(d.pval_full), na.rm=TRUE, varnames=c('otu_1', 'otu_2'), value.name='pvalue')
+# # Merge correlations and pvalues, apply multiple testing correction
+# sparc <- merge(d.corr, d.pval)
+# sparc$pvalue_adjusted <- p.adjust(sparc$pvalue, method='BH')
+# # Print rows with a significant pvalue, after multiple testing correction
+# sparc.signif <- print(sparc[sparc$pvalue_adjusted <= .Options$sig_pval, ], row.names=FALSE)
+
+
+sparcc.corr <- read.table("corr_sparcc_new.tsv", sep = "\t", header=T)
+sparcc.signif <- sparcc.corr[sparcc.corr$pvalue_adjusted <= .Options$sig_pval, ]
 
 
 
