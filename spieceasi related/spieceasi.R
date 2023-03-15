@@ -14,7 +14,8 @@ meta2
 
 virps3000_samemeta <- virps3000
 
-sample_data(virps3000_samemeta) <- sample_data(virps3000)[get_variable(virps3000, "description") %in% meta2$description]
+#replacing meta2 which is a function, by a metadata dataframe
+sample_data(virps3000_samemeta) <- sample_data(virps3000)[get_variable(virps3000, "description") %in% metadata$description]
 
 sample_names(virps3000_samemeta) <- sample_data(virps3000_samemeta)$description
 
@@ -149,7 +150,7 @@ length(which(crossing(clusters.vir, virplot) == T)) #number of cross community i
 
 
 #plot communities without shaded regions
-
+library(intergraph)
 ggnet2(virplot,
        color = membership(clusters.vir),
        alpha=0.75,

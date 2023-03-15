@@ -16,13 +16,23 @@ library(psych)
 library(reshape2)
 library(genefilter)
 library(TSA)
+library(DataCombine)
 
-setwd("~/Documents/GitHub/PBIN/data")
+#setwd("~/Documents/GitHub/PBIN/data")
+setwd("~/Desktop/Phage/PBIN/data")
 
 #upload ASV count table and metadata
-ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
-meta_cyano <- read.csv("metadata_w_cmd.csv", row.names = 1, header = T)
 
+oASV_count <- read.table("ASVs_counts_UPDATED_Modified.tsv", row.names = 1, header=T)
+colnames(oASV_count) = gsub("[.]", "_", colnames(oASV_count))
+ASV_count = subset(oASV_count, select = -c(1:4))
+
+#ASV_countcut <- FindReplace(data = ASV_count, Var = , replaceData = Replaces, from = ".", to = "_", exact = FALSE)
+
+meta_cyano <- read.csv("PBIN_metadata - METAFINAL.csv", row.names = 2, header = T)
+
+
+#changed metadata_w_cmd.csv to PBIN_metadata- METAFINAL.csv
 
 
 #meta$Years <- as.factor(meta$Years)
@@ -32,6 +42,7 @@ meta_cyano$Years <- as.factor(meta_cyano$Years)
 #ASV count table to phyloseq table
 count_phy <- otu_table(ASV_count, taxa_are_rows=T)
 sample_info <- sample_data(meta_cyano)
+
 viral_physeq <- phyloseq(count_phy, sample_info)
 
 #upload viral tree
@@ -80,14 +91,13 @@ vir_abund_helli <-decostand(t(filt_vir), method="hellinger")
 env_cy <- meta_cyano
 colnames(env_cy)
 
-#rename cols
+#rename cols (From precise to simple, Jin)
 env_cy <- env_cy %>%
   rename(
-    Cumul_precip = "Cumulative_precipitation_t1_t7_mm",
-    Avg_temp = "Mean_temperature_t0_t7",
-    Tot_P = "Total_Phosphorus_ug",
-    Tot_N = "Total_Nitrogen_mg"
-  )
+    "Cumul_precip"=Cumul_precip_t1_t7_mm,
+    "Avg_temp"=Mean_temp_t0_t7,
+    "Tot_P"=Tot.P_ug,
+    "Tot_N"=Tot.N_mg)
 
 ###Remove rows with too many NAs
 #look at data
@@ -96,20 +106,21 @@ summary(env_cy)
 #remove date col
 #env_keep <- env_cy[,-1]
 #remove certain env variables to reduce number of NAs
-env_keep <- env_cy %>% select("Months",
+env_keep <- env_cy %>% select("Month",
                               "Years",
                               "Site",
                               "Period",
-                              "bloom2",
+                              "Bloom",
                               "Tot_P",
                               "Tot_N",
-                              "Dissolved_P", 
-                              "Dissolved_N",
+                              "Dissolved.P", 
+                              "Dissolved.N",
                               "Cumul_precip",
                               "Avg_temp",
-                              "Cyano.Abundance",
-                              "Micro.Abundance",
-                              "Dolicho.Abundance")
+                              "micro.relab.sum",
+                              "doli.relab.sum",
+                              "cyano.relab.sum" 
+                              )
 colnames(env_keep)
 #standardize environmental data
 env_keep[,c(6:11)]<-decostand(env_keep[,c(6:11)], method="standardize")

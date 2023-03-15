@@ -29,8 +29,8 @@ identical(rownames(vir_abun_removed), rownames(complete_env_keep))
 # summary(abundance_removed)
 
 
-rda1 <- rda(formula=vir_abun_removed ~ Months + Years + Site + Period + bloom2 +
-  Tot_P + Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + Avg_temp, data=complete_env_keep, scale=T)
+rda1 <- rda(formula=vir_abun_removed ~ Month + Years + Site + Period + Bloom +
+  Tot_P + Tot_N + Dissolved.P + Dissolved.N + Cumul_precip + Avg_temp, data=complete_env_keep, scale=T)
   #"proportion" col for "constrained" (0.3807) is equivalent to the R2 of a multiple regression. This will be biased and should be adjusted:
 RsquareAdj(rda1)
   #the constrained ordination explains about 14% of the variation
@@ -86,8 +86,8 @@ plot(rda1, scaling=2) #default is axes 1 and 2
 
 
 #using adonis results (below):
-rda2 <- rda(formula=vir_abun_removed ~ Months + Years  + Period + bloom2 +
-              Tot_P +  Dissolved_N + Avg_temp, data=complete_env_keep, scale=T)
+rda2 <- rda(formula=vir_abun_removed ~ Month + Years  + Period + Bloom +
+              Tot_P +  Dissolved.N + Avg_temp, data=complete_env_keep, scale=T)
 #"proportion" col for "constrained" (0.3153) is equivalent to the R2 of a multiple regression. This will be biased and should be adjusted:
 RsquareAdj(rda2)
   #the constrained ordination explains about 14% of the variation
@@ -124,8 +124,8 @@ apply(complete_env_keep[,c(6:11)], 2, sd) #scaled data (std dev=1)
 #Plotting with ordistep2: only Months and Years are significant
 
  # #Use adonis to find significant environmental variables
-(abund_table.adonis <- adonis(vir_abun_removed ~ Months + Years + Site + Period + bloom2 +
-                                  Tot_P + Tot_N + Dissolved_P + Dissolved_N + Cumul_precip + Avg_temp,
+(abund_table.adonis <- adonis2(vir_abun_removed ~ Month + Years + Site + Period + Bloom +
+                                  Tot_P + Tot_N + Dissolved.P + Dissolved.N + Cumul_precip + Avg_temp,
                                   data=complete_env_keep, permutations = 9999))
  #Extract the best variables
 (bestEnvVariables<-rownames(abund_table.adonis$aov.tab)[abund_table.adonis$aov.tab$"Pr(>F)"<=0.05])
@@ -219,9 +219,9 @@ summary(spe.rda, display = NULL)
 ordiR2step(rda(vir_abun_removed~1, data=complete_env_keep), scope= formula(spe.rda), direction= "forward", R2scope=TRUE, pstep=1000)
 
   #the proportion of variation explained by the constraining variables being 0.3542
-
+complete_env_keep
 #retain significant variables only
-signif_env <- subset(complete_env_keep, select = c("Months", "Years", "bloom2", "Dissolved_N", "Tot_P", "Avg_temp"))
+signif_env <- subset(complete_env_keep, select = c("Month", "Years", "Bloom", "Dissolved.N", "Tot_P", "Avg_temp"))
 
 #rda with significant variables 
 rda_spe_signif <- rda(vir_abun_removed~., data=signif_env)

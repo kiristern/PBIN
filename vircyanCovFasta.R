@@ -1,5 +1,5 @@
 #select only viral ASVs that have an associated cyanobacteria (to blast)
-vircyan_cov <- read.csv("../vircyan.cov.csv", header = T, row.names=1)
+vircyan_cov <- read.csv("vircyan.cov.csv", header = T, row.names=1)
 head(vircyan_cov)
 
 vircyan.top06 <- vircyan_cov %>% 
@@ -11,7 +11,7 @@ library(stringr)
 vir2ID <- str_replace_all(unique(vircyan_cov$from), "vir_", "")
 
 library("Biostrings")
-vir.fasta <- readDNAStringSet("data/ASVs.fa")
+vir.fasta <- readDNAStringSet("data/ASVs_UPDATED.fa")
 seq_name <- names(vir.fasta)[names(vir.fasta) %in% vir2ID]
 sequence <- paste(vir.fasta)[names(vir.fasta) %in% seq_name]
 

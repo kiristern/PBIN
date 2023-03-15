@@ -1,7 +1,7 @@
 #upload cyano ASV data
-cyano_counts <- read.table("cyano/Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
+cyano_counts <- read.table("data/Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
 head(cyano_counts)
-cyano_taxa <- read.csv("cyano/ASVs_taxonomy_Champ_Greengenes.csv", header = T, row.names = 1, fill=T)
+cyano_taxa <- read.csv("data/ASVs_taxonomy_Champ_Greengenes.csv", header = T, row.names = 1, fill=T)
 head(cyano_taxa)
 
 nrow(meta)
@@ -37,7 +37,7 @@ library(phyloseq)
 bac_count <- otu_table(bact_counts, taxa_are_rows = T)
 dim(bac_count)
 bact_tax_tab <- tax_table(cyano_taxa)
-dim(cyano_taxa_ps)
+dim(cyano_taxa)
 rownames(bact_tax_tab) <- rownames(cyano_taxa)
 
 #add to phyloseq object
@@ -86,7 +86,7 @@ ggplot(ba_cyano_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ 
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+ #center title
         ggtitle("Breakaway richness by sample")+
-        scale_x_discrete(labels = bact_physeq %>% sample_data %>% get_variable("Months"), name="Month")#change x-axis sample name to Month
+        scale_x_discrete(labels = bact_physeq %>% sample_data %>% get_variable("Month"), name="Month")#change x-axis sample name to Month
 
 # # alpha diversity for (filtered) cyano only
 # ba_cyano <- breakaway(cyano_ps)
@@ -122,4 +122,5 @@ ggplot(ba_cyano_df, aes(x = fct_inorder(sample), y = richness, color = Years))+ 
 
 #### Shannon diversity ####
 ba_shannon <- estimate_richness(cyano_ps, measures="Shannon")
+ba_shannon
 

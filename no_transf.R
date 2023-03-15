@@ -22,7 +22,7 @@ setwd("~/Documents/GitHub/PBIN/data")
 
 #### UPLOAD DATA ####
 #upload viral ASV count table and metadata
-ASV_count <- read.table("ASVs_counts_copy.tsv", row.names = 1, header=T)
+ASV_count <- read.table("data/ASVs_counts_UPDATED.tsv", row.names = 1, header=T)
 str(ASV_count)
 dim(ASV_count)
 range(ASV_count)
@@ -32,7 +32,7 @@ summary(ASV_count)
 
 colnames(ASV_count)[colnames(ASV_count) == "FLD0295_15_05_2011_1"] <- "FLD0295_15_05_2011_2" #dates were duplicated therefore need to correct
 head(ASV_count, n=2)
-meta <- read.csv("meta_cmd.csv", row.names = 1, header = T)
+meta <- read.csv("data/PBIN_metadata - METAFINAL.csv", row.names = 2, header = T)
 head(meta, n=2)
 #meta$Years <- as.factor(meta$Years)
 meta$Years <- as.factor(meta$Years)
@@ -65,13 +65,13 @@ library(microbiome)
 #VIRAL
 
 #add ASV count table, metadata, virTree to phyloseq table
-nozero <- asv_count[rownames(asv_count) %in% names(rowSums(asv_count > 0)),]
-length(rowSums(asv_count > 0)) == nrow(asv_count)
-count_phy <- otu_table(asv_count, taxa_are_rows=T)
+nozero <- ASV_count[rownames(ASV_count) %in% names(rowSums(ASV_count > 0)),]
+length(rowSums(ASV_count > 0)) == nrow(ASV_count)
+count_phy <- otu_table(ASV_count, taxa_are_rows=T)
 sample_info <- sample_data(meta)
 virTree <- read_tree("viral_tree")
 
-fake_taxa <- read.table("fake_viral_tax.txt", header = T, row.names = 1, fill=T)
+fake_taxa <- read.table("data/fake_viral_tax.txt", header = T, row.names = 1, fill=T)
 mock_taxa <- tax_table(fake_taxa)
 mock_taxa[,7] <- str_remove(mock_taxa[,7], "s__")
 row.names(mock_taxa) <- mock_taxa[,7]
@@ -80,7 +80,8 @@ head(mock_taxa)
 #add to phyloseq object
 viral_physeq <- phyloseq(count_phy, sample_info, virTree, mock_taxa)
 viral_physeq %>% otu_table( ) %>% dim
-
+#rownames(count_phy)
+#sample_names(sample_info)
 # rm reads less than 3000
 virps3000 = prune_samples(sample_sums(viral_physeq)>=3000, viral_physeq)
 #asv_count
@@ -279,7 +280,7 @@ ba_virps3000 <- breakaway(virps3000)
 
 #boxplot bloom
 ba_bloom = data.frame("ba_observed_richness" = (ba_virps3000 %>% summary)$estimate,
-                      "Bloom" = virps3000 %>% sample_data %>% get_variable("bloom2"))
+                      "Bloom" = virps3000 %>% sample_data %>% get_variable("Bloom"))
 ba_bloom_yn <- na.omit(ba_bloom[1:2])
 
 (ba_plot <-  ggplot(ba_bloom_yn, aes(x = Bloom, y = ba_observed_richness))+
@@ -447,7 +448,7 @@ ggplot(viral_df, aes(x = forcats::fct_inorder(sample), y = shannon, color = Year
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 5), #rotate axis labels
         plot.title = element_text(hjust = 0.5))+ #center title
   ggtitle("Shannon diversity by sample")+
-  scale_x_discrete(labels = virps3000 %>% sample_data %>% get_variable("Months"), name="Month")#change x-axis sample name to Month
+  scale_x_discrete(labels = virps3000 %>% sample_data %>% get_variable("Month"), name="Month")#change x-axis sample name to Month
 
 ### sampling depth (reads per sample)
 summary(sample_sums(virps3000)) #large difference in number of reads, min=22; max=130183

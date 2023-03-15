@@ -81,9 +81,11 @@ psmelt_dplyr = function(physeq) {
   return(all)
 }
 
+vs_metadata <- viral_physeq %>% sample_data()
+
 tsdf.0.2 <- bl.phy %>% 
   psmelt_dplyr() %>% 
-  mutate(decimaldat = decimal_date(Date)) 
+  mutate(decimaldat = decimal_date(as.Date(Date))) 
 head(tsdf.0.2)
 tail(tsdf.0.2)
 
@@ -113,7 +115,7 @@ lomb.02 <- tsdf.0.2 %>%
                 type = 'period',
                 plot = F))
 
-par(mar=c(1,1,1,1)) #fix error: Error in plot.new() : figure margins too large
+par(mar=c(2,2,2,1)) #fix error: Error in plot.new() : figure margins too large change margin
 
 lomb.sea.02 <- tibble( asv = names(lomb.02),
                        pval = map_dbl(lomb.02, ~.x$p.value),
@@ -127,8 +129,8 @@ head(lomb.sea.02)
 head(lomb.season <- as.data.frame(lomb.sea.02[,c(1, 2,7)]))
 write.csv(lomb.season, "lomb_seasonality.csv")
 
-write_rds(lomb.02, 'data/analysis/lomball.rds')
-write_rds(lomb.sea.02, 'data/analysis/lombsea.rds')
+write_rds(lomb.02, 'data/lomball.rds')
+write_rds(lomb.sea.02, 'data/lombsea.rds')
 
 results.lomb02 <- lomb.02[lomb.sea.02 %>% pull(asv)]
 

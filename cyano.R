@@ -1,5 +1,5 @@
-setwd("~/Documents/GitHub/PBIN/data/cyano")
-
+#setwd("~/Documents/GitHub/PBIN/data/cyano")
+setwd("~/Desktop/phage/PBIN_ShapiroLab/data")
 cyano_counts <- read.table("Champ_ASVs_counts.txt", header = TRUE, row.names = 1)
 cyano_taxa <- read.csv("ASVs_taxonomy_Champ_Greengenes.csv", header = T, row.names = 1, fill=T)
 cyano <- read.table("Champlain_cyano.txt", fill = TRUE)
@@ -75,8 +75,9 @@ head(count_taxa)
 #tranpose cyano_rel_abundance back
 cyano_trans <- t(cyano_rel_abundance)
 cyano_trans <- as.data.frame(cyano_trans)
+
 #create new col with replicated ASV name
-cyano_trans$ASV=cyano_asv_id
+cyano_trans$ASV <- cyano_asv_id[1:80]
 
 head(cyano_rel_abundance)
 #extract asv_id

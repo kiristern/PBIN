@@ -6,13 +6,13 @@ library(labdsv)
 library(plyr)
 library(MASS)
 
-Calculate distance matrix
-bc<-vegdist(abundance_removed, method="bray", binary=FALSE) 
+#Calculate distance matrix
+bc<-vegdist(vir_abun_removed, method="bray", binary=FALSE) 
 
 # look at an unconstrained ordination first, it is always a good idea to look at both unconstrained and constrained ordinations
 # set the seed: to reproduce the same result in the fture
 set.seed(100)
-bci.mds<-metaMDS(abundance_removed, distance = "bray", k = 2)
+bci.mds<-metaMDS(vir_abun_removed, distance = "bray", k = 2)
 
 # extract x and y coordinates from MDS plot into new dataframe, so you can plot with ggplot 
 MDS_xy <- data.frame(bci.mds$points)
@@ -26,7 +26,7 @@ ggplot(MDS_xy, aes(MDS1, MDS2, colour=complete_env_keep$bloom2)) +
   ggtitle('stress:0.12')
 
 # RDA
-simpleRDA <- rda(abundance_removed ~., data=complete_env_keep)
+simpleRDA <- rda(vir_abun_removed ~., data=complete_env_keep)
 summary(simpleRDA)
 screeplot(simpleRDA) #bstick not available for constrained ordinations
 
@@ -38,6 +38,8 @@ coef(simpleRDA)
 
 # adjusted R^2
 (R2adj <- RsquareAdj(simpleRDA)$adj.r.squared)
+R2adj#0.5573173
+
 #The adjusted R2 measures the unbiased amount of explained variation. So this model explains 45.6% of the variation in the data. If you used the biased R2, any variable included in the explanatory responses would increase the R2, so the R2 needs to be adjusted for the number of explanatory variables (especially since we have eight included here).
 
 # Triplot: three different entities in the plot: sites, response variables and explanatory variables (arrowheads are on the explanatory variables)
@@ -54,8 +56,24 @@ spe2.sc <- scores(simpleRDA, choices=1:2, display="sp") # scores() choices= indi
 arrows(0,0,spe2.sc[,1], spe2.sc[,2], length=0, lty=1, col='red')
 
 # plot the RDA using ggplot (ggord package)
+# Enable the r-universe repo
+options(repos = c(
+  fawda123 = 'https://fawda123.r-universe.dev',
+  CRAN = 'https://cloud.r-project.org'))
+
+# Install ggord
+install.packages('ggord')
 library(ggord)
-ggord(simpleRDA, complete_env_keep$bloom2) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) # looking at the raw code, this is plotting the 'wa scores', the blue dots are different species  
+ggord(simpleRDA, complete_env_keep$Bloom) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) # looking at the raw code, this is plotting the 'wa scores', the blue dots are different species  
+simpleRDA
+complete_env_keep
+#try some ggord option
+rda_spe_signif
+tryNPT<-complete_env_keep[,c("Avg_temp","Tot_P","Dissolved.N")]
+
+ggord(rda_spe_signif) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+ggord(rda_spe_signif, complete_env_keep$Bloom) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())#less variable   
+ggord(simpleRDA, complete_env_keep$Bloom) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())   
 
 # plot the results of the RDA using ‘lc’
 # site scores as linear combinations of the environmental variables 
@@ -76,6 +94,7 @@ arrows(0,0,spe2.sc[,1],spe2.sc[,2], length=0, lty=1,col='red')
 # variance inflation factors in the RDA
 vif.cca(simpleRDA)
 #omit anything over 10
+
 
 
 
