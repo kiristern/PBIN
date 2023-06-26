@@ -4,21 +4,38 @@ library(igraph)
 library(bipartite)
 
 vircyn.plot2 <- vircyan.plot
-
+class(vircyn.plot2 )
 web <- as_adjacency_matrix(vircyn.plot2, attr = "weight")
 #bipartite::visweb(web)
 
 web2 <- get.adjacency(vircyn.plot2, sparse=F, attr = "weight")
 
 plotweb(sortweb(web2, sort.order = "inc"), method="normal", text.rot=90, col.low="#1F78B4", col.high="#B2DF8A", col.interaction="#A6CEE3", labsize = 0.4)
-plotweb(sortweb(web2, sort.order = "inc"), method="normal", text.rot=90, col.low="#1F78B4", col.high="#B2DF8A", col.interaction="#A6CEE3", labsize = 0.3,
-        bor.col.high="darkgrey", bor.col.low="darkgrey")
-
-visweb(web)
+visweb(web2)
 
 
-
-
+#try with bipartiteD3
+install.packages("bipartiteD3")
+library(r2d3)
+library(bipartite )
+library(purrr) 
+library(dplyr) 
+library(tidyr) 
+library(stringr)
+library(tibble)
+library(RColorBrewer)
+library(bipartiteD3)
+bipartite_D3(web2)
+bipartite_D3(web2, colouroption = 'brewer', ColourBy = 1, filename = 'demo')
+bipartite_D3(data = web2,
+             #mp=c(2,1),
+             MainFigSize = c(1000, 1000), 
+             BoxLabPos = c(100, 10),
+             BarSize = 10,
+             MinWidth = 5,
+             Pad=3,
+             filename = 'demo13',
+             IncludePerc = F)
 
 #some try didnot work
 require(ggplot2)
@@ -62,5 +79,8 @@ bip_init_network <- function (mymat, mode1="P", mode2="A") {
 
 bip_railway(sortweb(web2, sort.order = "inc")) 
 g<- bip_railway(web2, label=T)
+g
+
+
 g
 
